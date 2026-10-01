@@ -1,0 +1,20 @@
+# What the source distribution carries beyond the package itself.
+#
+# Without this file setuptools applies its own defaults, and those defaults ship `tests/test*.py`
+# but not `tests/shipped.py` — a helper every prohibition gate imports. Measured 2026-09-21 on a
+# built artefact: nine test files arrived, their shared import did not, and `pytest` stopped at
+# "Interrupted: 2 errors during collection". Zero of 123 tests ran, while the README promised
+# that every behavioural claim could be checked by running them.
+#
+# The rule this encodes: the README's verification table names files, so those files ship.
+# The repo-only files ship too, so that the gates below walk the SAME surface in both
+# channels. Teaching them to expect two different trees would put the control arm on a
+# different path from the thing it controls — and the sdist is then no longer the repo.
+include .gitignore
+recursive-include .github *.yml
+
+include CITATION.cff
+include NOTICE
+include MANIFEST.in
+recursive-include tests *.py
+recursive-include examples *.py

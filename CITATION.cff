@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+title: "voteworth: how many independent votes your LLM judge panel is actually worth"
+message: "If you use this software, please cite the measurement note below."
+type: software
+authors:
+  - given-names: Alexander
+    family-names: Bering
+    orcid: "https://orcid.org/0009-0001-1793-012X"
+license: Apache-2.0
+repository-code: "https://github.com/zensation-ai/voteworth"
+abstract: >
+  Measures whether an LLM voter or judge panel can produce an independent majority, corrects
+  the vote for correlated voters, and reports when it cannot. Voters drawn from the same model
+  share their error modes, so a correlated bloc can win a plain majority while being wrong and
+  have its agreement read as confidence. The package learns a per-voter independence weight
+  from a vote history, or derives one from provenance labels when no history exists. It states
+  its own boundary: on a panel that is one model throughout, the correction is provably inert.
+keywords:
+  - llm-as-judge
+  - self-consistency
+  - majority voting
+  - ensemble
+  - calibration
+  - overconfidence
+references:
+  - type: article
+    title: "Reweighting Correlated Voters Does Not Repair Agreement Confidence: Structural Inertness and a Recalibration Control"
+    authors:
+      - given-names: Alexander
+        family-names: Bering
+        orcid: "https://orcid.org/0009-0001-1793-012X"
+    year: 2026
+    doi: "10.5281/zenodo.21775275"
+  - type: data
+    title: "Agreement-Confidence Reanalysis: Vote Matrix and Screen"
+    authors:
+      - given-names: Alexander
+        family-names: Bering
+        orcid: "https://orcid.org/0009-0001-1793-012X"
+    year: 2026
+    doi: "10.5281/zenodo.21773065"
+  - type: article
+    title: "Four Independence Invariants for Judgment-Quality Measurement in Agent Memory: A Specification"
+    authors:
+      - given-names: Alexander
+        family-names: Bering
+        orcid: "https://orcid.org/0009-0001-1793-012X"
+    year: 2026
+    doi: "10.5281/zenodo.22012189"

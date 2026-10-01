@@ -1,0 +1,2039 @@
+{
+  "scale": "100K",
+  "writers": [
+    "gpt4om-A",
+    "gpt4om-B",
+    "gpt4om-C",
+    "gpt41m-A",
+    "gpt41m-B",
+    "gpt41m-C",
+    "haiku-A",
+    "haiku-B",
+    "mistral-A",
+    "mistral-B"
+  ],
+  "judge": "gpt-4o-mini",
+  "nItems": 80,
+  "perWriterAccPct": [
+    {
+      "writer": "gpt4om-A",
+      "acc": 46.25
+    },
+    {
+      "writer": "gpt4om-B",
+      "acc": 41.25
+    },
+    {
+      "writer": "gpt4om-C",
+      "acc": 40
+    },
+    {
+      "writer": "gpt41m-A",
+      "acc": 41.25
+    },
+    {
+      "writer": "gpt41m-B",
+      "acc": 45
+    },
+    {
+      "writer": "gpt41m-C",
+      "acc": 45
+    },
+    {
+      "writer": "haiku-A",
+      "acc": 48.75
+    },
+    {
+      "writer": "haiku-B",
+      "acc": 46.25
+    },
+    {
+      "writer": "mistral-A",
+      "acc": 40
+    },
+    {
+      "writer": "mistral-B",
+      "acc": 35
+    }
+  ],
+  "errorCorrelation": [
+    {
+      "writer": "gpt4om-A",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 63.41463414634146,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 64.28571428571429,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 58.97435897435897,
+          "bothWrong": 39
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 51.351351351351354,
+          "bothWrong": 37
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 50,
+          "bothWrong": 36
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 54.285714285714285,
+          "bothWrong": 35
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 45.714285714285715,
+          "bothWrong": 35
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 50,
+          "bothWrong": 40
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 48.78048780487805,
+          "bothWrong": 41
+        }
+      ]
+    },
+    {
+      "writer": "gpt4om-B",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 63.41463414634146,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 74.46808510638297,
+          "bothWrong": 47
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 50,
+          "bothWrong": 40
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 66.66666666666667,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 60,
+          "bothWrong": 40
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 55.55555555555556,
+          "bothWrong": 36
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 64.1025641025641,
+          "bothWrong": 39
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 52.27272727272727,
+          "bothWrong": 44
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 53.333333333333336,
+          "bothWrong": 45
+        }
+      ]
+    },
+    {
+      "writer": "gpt4om-C",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 64.28571428571429,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 74.46808510638297,
+          "bothWrong": 47
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 58.53658536585366,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 64.28571428571429,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 65,
+          "bothWrong": 40
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 52.77777777777778,
+          "bothWrong": 36
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 64.1025641025641,
+          "bothWrong": 39
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 59.09090909090909,
+          "bothWrong": 44
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 58.69565217391305,
+          "bothWrong": 46
+        }
+      ]
+    },
+    {
+      "writer": "gpt41m-A",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 58.97435897435897,
+          "bothWrong": 39
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 50,
+          "bothWrong": 40
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 58.53658536585366,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 59.45945945945946,
+          "bothWrong": 37
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 68.42105263157895,
+          "bothWrong": 38
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 51.42857142857143,
+          "bothWrong": 35
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 47.22222222222222,
+          "bothWrong": 36
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 43.90243902439025,
+          "bothWrong": 41
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 46.51162790697674,
+          "bothWrong": 43
+        }
+      ]
+    },
+    {
+      "writer": "gpt41m-B",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 51.351351351351354,
+          "bothWrong": 37
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 66.66666666666667,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 64.28571428571429,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 59.45945945945946,
+          "bothWrong": 37
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 76.92307692307692,
+          "bothWrong": 39
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 52.77777777777778,
+          "bothWrong": 36
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 65.78947368421052,
+          "bothWrong": 38
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 50,
+          "bothWrong": 42
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 53.48837209302326,
+          "bothWrong": 43
+        }
+      ]
+    },
+    {
+      "writer": "gpt41m-C",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 50,
+          "bothWrong": 36
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 60,
+          "bothWrong": 40
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 65,
+          "bothWrong": 40
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 68.42105263157895,
+          "bothWrong": 38
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 76.92307692307692,
+          "bothWrong": 39
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 51.42857142857143,
+          "bothWrong": 35
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 67.56756756756756,
+          "bothWrong": 37
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 48.717948717948715,
+          "bothWrong": 39
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 53.65853658536585,
+          "bothWrong": 41
+        }
+      ]
+    },
+    {
+      "writer": "haiku-A",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 54.285714285714285,
+          "bothWrong": 35
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 55.55555555555556,
+          "bothWrong": 36
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 52.77777777777778,
+          "bothWrong": 36
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 51.42857142857143,
+          "bothWrong": 35
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 52.77777777777778,
+          "bothWrong": 36
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 51.42857142857143,
+          "bothWrong": 35
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 63.888888888888886,
+          "bothWrong": 36
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 47.36842105263158,
+          "bothWrong": 38
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 44.73684210526316,
+          "bothWrong": 38
+        }
+      ]
+    },
+    {
+      "writer": "haiku-B",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 45.714285714285715,
+          "bothWrong": 35
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 64.1025641025641,
+          "bothWrong": 39
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 64.1025641025641,
+          "bothWrong": 39
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 47.22222222222222,
+          "bothWrong": 36
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 65.78947368421052,
+          "bothWrong": 38
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 67.56756756756756,
+          "bothWrong": 37
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 63.888888888888886,
+          "bothWrong": 36
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 48.717948717948715,
+          "bothWrong": 39
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 51.21951219512195,
+          "bothWrong": 41
+        }
+      ]
+    },
+    {
+      "writer": "mistral-A",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 50,
+          "bothWrong": 40
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 52.27272727272727,
+          "bothWrong": 44
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 59.09090909090909,
+          "bothWrong": 44
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 43.90243902439025,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 50,
+          "bothWrong": 42
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 48.717948717948715,
+          "bothWrong": 39
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 47.36842105263158,
+          "bothWrong": 38
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 48.717948717948715,
+          "bothWrong": 39
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": 70.2127659574468,
+          "bothWrong": 47
+        }
+      ]
+    },
+    {
+      "writer": "mistral-B",
+      "vs": [
+        {
+          "other": "gpt4om-A",
+          "sameWrongPct": 48.78048780487805,
+          "bothWrong": 41
+        },
+        {
+          "other": "gpt4om-B",
+          "sameWrongPct": 53.333333333333336,
+          "bothWrong": 45
+        },
+        {
+          "other": "gpt4om-C",
+          "sameWrongPct": 58.69565217391305,
+          "bothWrong": 46
+        },
+        {
+          "other": "gpt41m-A",
+          "sameWrongPct": 46.51162790697674,
+          "bothWrong": 43
+        },
+        {
+          "other": "gpt41m-B",
+          "sameWrongPct": 53.48837209302326,
+          "bothWrong": 43
+        },
+        {
+          "other": "gpt41m-C",
+          "sameWrongPct": 53.65853658536585,
+          "bothWrong": 41
+        },
+        {
+          "other": "haiku-A",
+          "sameWrongPct": 44.73684210526316,
+          "bothWrong": 38
+        },
+        {
+          "other": "haiku-B",
+          "sameWrongPct": 51.21951219512195,
+          "bothWrong": 41
+        },
+        {
+          "other": "mistral-A",
+          "sameWrongPct": 70.2127659574468,
+          "bothWrong": 47
+        },
+        {
+          "other": "mistral-B",
+          "sameWrongPct": null,
+          "bothWrong": 0
+        }
+      ]
+    }
+  ],
+  "quorum": {
+    "testN": 40,
+    "bestSinglePct": 48.75,
+    "bestSingleTestPct": 58.62068965517241,
+    "naivePct": 44.827586206896555,
+    "learnPct": 51.724137931034484,
+    "oraclePct": 48.275862068965516,
+    "learnWeights": [
+      0.27272727272727276,
+      0.19354838709677422,
+      0.24000000000000005,
+      0.2857142857142857,
+      0.2,
+      0.375,
+      0.2857142857142857,
+      0.4285714285714286,
+      0.2777777777777778,
+      0.2777777777777778
+    ]
+  },
+  "panel": [
+    {
+      "name": "gpt4om-A",
+      "model": "gpt-4o-mini"
+    },
+    {
+      "name": "gpt4om-B",
+      "model": "gpt-4o-mini"
+    },
+    {
+      "name": "gpt4om-C",
+      "model": "gpt-4o-mini"
+    },
+    {
+      "name": "gpt41m-A",
+      "model": "gpt-4.1-mini"
+    },
+    {
+      "name": "gpt41m-B",
+      "model": "gpt-4.1-mini"
+    },
+    {
+      "name": "gpt41m-C",
+      "model": "gpt-4.1-mini"
+    },
+    {
+      "name": "haiku-A",
+      "model": "claude-haiku-4-5"
+    },
+    {
+      "name": "haiku-B",
+      "model": "claude-haiku-4-5"
+    },
+    {
+      "name": "mistral-A",
+      "model": "mistral-small-latest"
+    },
+    {
+      "name": "mistral-B",
+      "model": "mistral-small-latest"
+    }
+  ],
+  "itemMeta": [
+    {
+      "qid": "1:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "1:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "1:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "1:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "2:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "2:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "2:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "2:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "3:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "3:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "3:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "3:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "4:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "4:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "4:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "4:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "5:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "5:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "5:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "5:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "6:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "6:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "6:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "6:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "7:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "7:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "7:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "7:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "8:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "8:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "8:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "8:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "9:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "9:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "9:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "9:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "10:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "10:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "10:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "10:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "11:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "11:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "11:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "11:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "12:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "12:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "12:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "12:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "13:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "13:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "13:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "13:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "14:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "14:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "14:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "14:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "15:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "15:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "15:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "15:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "16:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "16:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "16:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "16:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "17:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "17:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "17:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "17:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "18:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "18:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "18:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "18:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "19:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "19:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "19:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "19:information_extraction:1",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "20:knowledge_update:0",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "20:knowledge_update:1",
+      "ability": "knowledge_update"
+    },
+    {
+      "qid": "20:information_extraction:0",
+      "ability": "information_extraction"
+    },
+    {
+      "qid": "20:information_extraction:1",
+      "ability": "information_extraction"
+    }
+  ],
+  "votesByItem": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      3,
+      6,
+      7,
+      7
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      2,
+      0,
+      3,
+      4
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      2,
+      1,
+      3,
+      4,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      0,
+      0,
+      4,
+      4,
+      2,
+      2
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      0,
+      1,
+      2,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      2,
+      3,
+      0,
+      4,
+      5,
+      6
+    ],
+    [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      2
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      1,
+      1,
+      2,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      2,
+      3,
+      4,
+      2,
+      5,
+      6,
+      7
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      2,
+      3,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    [
+      0,
+      1,
+      1,
+      2,
+      2,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      1,
+      0,
+      2,
+      3,
+      4,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      8
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      2,
+      1
+    ],
+    [
+      0,
+      1,
+      0,
+      2,
+      3,
+      3,
+      4,
+      5,
+      6,
+      6
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1,
+      2,
+      1,
+      1,
+      1,
+      1,
+      3,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      4,
+      4,
+      6,
+      7
+    ],
+    [
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      0,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    [
+      0,
+      1,
+      1,
+      2,
+      2,
+      2,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      2,
+      1,
+      1,
+      0,
+      3
+    ]
+  ],
+  "correctGroupByItem": [
+    0,
+    -1,
+    0,
+    3,
+    1,
+    0,
+    0,
+    -1,
+    0,
+    -1,
+    0,
+    3,
+    0,
+    -1,
+    -1,
+    -1,
+    -1,
+    0,
+    0,
+    -1,
+    -1,
+    -1,
+    0,
+    3,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    -1,
+    1,
+    0,
+    -1,
+    0,
+    3,
+    0,
+    0,
+    -1,
+    1,
+    -1,
+    1,
+    0,
+    6,
+    -1,
+    0,
+    -1,
+    4,
+    2,
+    1,
+    0,
+    3,
+    0,
+    -1,
+    -1,
+    4,
+    -1,
+    0,
+    0,
+    -1,
+    0,
+    0,
+    0,
+    -1,
+    0,
+    2,
+    0,
+    5,
+    -1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    -1,
+    0,
+    0,
+    0,
+    1,
+    1
+  ]
+}

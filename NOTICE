@@ -1,0 +1,38 @@
+voteworth
+Copyright 2026 Alexander Bering
+
+This product includes software developed by Alexander Bering.
+
+The bundled vote matrix at
+src/voteworth/data/panel_10_voters.json
+is published separately under CC BY 4.0 as
+
+  Agreement-Confidence Reanalysis: Vote Matrix and Screen
+  https://doi.org/10.5281/zenodo.21773065
+
+and is redistributed here under that licence. Attribution as above.
+
+Its SHA-256, so that a reader can verify this copy is the published one without trusting
+this package:
+
+  c7fc46d61f239a53852a508100e1d5774ea4d3490e9a024f9786c578317239d2  src/voteworth/data/panel_10_voters.json
+
+Two things the record page will not tell you. Both were found on 2026-09-21 by someone
+following the older wording of this paragraph and failing:
+
+  * On Zenodo the file is called core2_writers_n10_100K.json. It is renamed here for
+    readability. The bytes are unchanged — that is what the hash above shows.
+  * Zenodo lists an MD5 beside each file, not a SHA-256. Comparing the value above against
+    the one on the record page cannot match: they are different algorithms, and a reader who
+    tries it learns nothing about this copy.
+
+The record carries its own SHA256.txt beside the data. That is the file to compare against:
+
+  curl -s https://zenodo.org/api/records/21773066/files/SHA256.txt/content
+
+It lists one line per file in the record. The line ending in core2_writers_n10_100K.json must
+carry exactly the hash printed above. If it differs, this copy has been altered and its
+numbers should not be used.
+
+(Record 21773066 is the version behind the concept DOI 10.5281/zenodo.21773065 above; Zenodo
+resolves the concept DOI to the latest version, which is this one.)

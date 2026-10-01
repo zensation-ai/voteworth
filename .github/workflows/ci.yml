@@ -1,0 +1,74 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Arm 1 — the repository as a contributor sees it.
+  checkout:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      # The unit tests, the mutation gate (which proves they can fail) and the README checks
+      # all run here. The mutation gate forks a pytest per mutation, so this job is a little
+      # slower than the suite alone — that is the cost of knowing the alarm works.
+      - name: Test
+        run: pytest -q
+
+      - name: Demo runs as advertised
+        run: python -m voteworth.demo
+
+  # Arm 2 — the artefact a stranger downloads. This job exists because arm 1 cannot see the
+  # difference: it installs the working tree, so a file missing from the built distribution is
+  # invisible to it. Measured 2026-09-21 on a built sdist: `tests/shipped.py` was not packaged,
+  # every prohibition gate imports it, and `pytest` stopped at "Interrupted: 2 errors during
+  # collection" — zero of 123 tests ran, while the README promised they could all be run. A
+  # control arm that takes a different path from the claim controls nothing.
+  artefact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the distribution
+        run: python -m pip install --upgrade pip build && python -m build
+
+      - name: The sdist must contain every file in the tree
+        run: |
+          tar tzf dist/*.tar.gz | sed 's|^[^/]*/||' | grep -v '/$' | LC_ALL=C sort -u > /tmp/shipped
+          git ls-files | LC_ALL=C sort > /tmp/tracked
+          missing=$(comm -23 /tmp/tracked /tmp/shipped)
+          if [ -n "$missing" ]; then
+            echo "these tracked files are missing from the sdist:"; echo "$missing"; exit 1
+          fi
+
+      - name: The suite must pass inside the unpacked sdist
+        run: |
+          mkdir -p /tmp/sdist && tar xzf dist/*.tar.gz -C /tmp/sdist --strip-components=1
+          cd /tmp/sdist
+          python -m pip install ".[dev]"
+          pytest -q
+
+      - name: The wheel must run the demo with no source tree in sight
+        run: |
+          mkdir -p /tmp/elsewhere && cd /tmp/elsewhere
+          python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          python -m voteworth.demo | tee out.txt
+          grep -q INERT out.txt
