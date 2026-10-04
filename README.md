@@ -13,7 +13,7 @@ This package measures that dependence three ways, corrects the vote where it can
 you plainly where it cannot.
 
 ```bash
-pip install voteworth
+pip install git+https://github.com/zensation-ai/voteworth
 python -m voteworth.demo
 ```
 
@@ -279,9 +279,9 @@ case shipped in the tests.
 
 Asked as a downloader would, with nothing but the files in this package:
 
-**Where these run.** Everything below runs from the source: a clone of the repository, or the
-source distribution (`pip download --no-binary :all: voteworth`, then unpack it). A plain
-`pip install voteworth` gives you a wheel, which carries the package, the licence and the
+**Where these run.** Everything below runs from the source, that is, a clone of the repository.
+Installing straight from GitHub (`pip install git+https://github.com/zensation-ai/voteworth`)
+builds a wheel, which carries the package, the licence and the
 `NOTICE` — but not the test suite, so the first three rows have nothing to run there. That is
 normal for a wheel and was worth saying: an earlier version of this table promised the checks
 without saying which artefact they live in.
