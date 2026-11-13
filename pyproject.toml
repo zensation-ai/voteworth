@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voteworth"
-version = "0.1.0"
+version = "0.1.1"
 description = "Measure error correlation in an LLM judge panel or voter ensemble, report the effective number of independent votes, and correct the majority vote for correlated voters — including the panel shape where it cannot. Closed-form, label-free, numpy only."
 readme = "README.md"
 requires-python = ">=3.9"

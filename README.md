@@ -31,7 +31,7 @@ pytest                        # the suite, including the mutation gate
 On the bundled vote matrix — ten real LLM voters over 80 items, no network, no API key:
 
 ```
-=== 1. When two voters are both wrong, do they agree on the wrong answer? ===
+=== 1. When two voters both break from the majority, do they pick the same answer? ===
   same model       42.8%   (8 pairs)
   different model  18.5%   (37 pairs)
 
@@ -63,15 +63,17 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
   3x gpt-4.1-mini           acc  51.7% →  51.7%   INERT — weighting changed nothing
   → Provenance weighting needs voters from different sources. A same-model panel
     cannot be repaired by reweighting; it has to be made diverse.
-  → Diversity is necessary, not sufficient: cross-model pairs here still agree on
-    the wrong answer 18.5% of the time, and this panel of four families is
-    worth 1.5 effective votes out of 10.
+  → Diversity is necessary, not sufficient: when cross-model pairs both break from
+    the majority, they still pick the same answer 18.5% of the time, and this
+    panel of four families is worth 1.5 effective votes out of 10.
 ```
 
 Four things worth sitting with:
 
 **Ten voters were worth 1.48.** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, counts
-how many independent voters you actually have. A published nine-judge panel spanning seven
+how many independent voters you actually have. The ordering carries; the second decimal does
+not: mean pairwise agreement is only a coarse stand-in for the intraclass correlation the formula
+expects. A published nine-judge panel spanning seven
 model families measures about 2.2. Adding voters from the same pool buys far less than the
 count suggests.
 
@@ -79,8 +81,8 @@ count suggests.
 62.1% confidence while being right 44.8% of the time. Agreement was measuring redundancy, not
 correctness.
 
-**Read the absolute gap, not the ratio.** Same-model pairs here agree on the wrong answer
-2.3× as often as cross-model pairs — and that ratio is mostly an artefact of how it was
+**Read the absolute gap, not the ratio.** Same-model pairs that both break from the majority
+pick the same answer 2.3× as often as cross-model pairs — and that ratio is mostly an artefact of how it was
 measured. On this one panel, without changing a single vote, three choices move it:
 
 | base and definition (all pooled over events) | same | cross | gap | ratio |
@@ -177,8 +179,8 @@ weights is the signature.** The demo prints both and warns above 50%.
   same learned weighting leaves overconfidence at **15.3 points, from 15.3** — the provenance
   weight moves it to 14.9. Read the −7.2 pp above as a direction, not a size. **Decision
   repair and calibration repair are different things**, and this package only does the first.
-- **Diversity is necessary, not sufficient.** Cross-model pairs in the demo still agree on the
-  wrong answer 18.5% of the time, and a nine-judge panel of seven families measures ~2.2
+- **Diversity is necessary, not sufficient.** Cross-model pairs in the demo that both break from
+  the majority still pick the same answer 18.5% of the time, and a nine-judge panel of seven families measures ~2.2
   effective votes. Measure your panel; do not assume it from the roster.
 
 ## Is the test suite real?
