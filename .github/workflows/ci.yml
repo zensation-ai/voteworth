@@ -12,7 +12,10 @@ permissions:
 jobs:
   # Arm 1 — the repository as a contributor sees it.
   checkout:
-    runs-on: ubuntu-latest
+    # Python 3.9 is not built for Ubuntu 26.04 (actions/python-versions manifest, read 2026-11-13: 3.9.25
+    # exists for 22.04 and 24.04 only), and `requires-python = ">=3.9"` still promises it. So that one leg
+    # stays on 24.04; the others follow ubuntu-latest.
+    runs-on: ${{ matrix.python-version == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:

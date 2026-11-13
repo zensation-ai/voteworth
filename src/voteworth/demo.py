@@ -84,7 +84,7 @@ def main() -> None:
         for j in range(i + 1, n):
             if m[i][j] == m[i][j]:  # not NaN
                 (same if panel[i]["model"] == panel[j]["model"] else cross).append(m[i][j])
-    print("\n=== 1. When two voters are both wrong, do they agree on the wrong answer? ===")
+    print("\n=== 1. When two voters both break from the majority, do they pick the same answer? ===")
     same_r, cross_r = mean_or_none(same), mean_or_none(cross)
     print(f"  same model      {pct_or_dash(same_r)}   ({len(same)} pairs)")
     print(f"  different model {pct_or_dash(cross_r)}   ({len(cross)} pairs)")
@@ -209,9 +209,9 @@ def main() -> None:
         print(f"  {len(subset)}x {model:22} acc {pct(a_naive)} → {pct(a_w)}   {tag}")
     print("  → Provenance weighting needs voters from different sources. A same-model panel")
     print("    cannot be repaired by reweighting; it has to be made diverse.")
-    print(f"  → Diversity is necessary, not sufficient: cross-model pairs here still agree on")
-    print(f"    the wrong answer {100 * cross_r:.1f}% of the time, and this panel of four families is")
-    print(f"    worth {ne_raw:.1f} effective votes out of {n}.")
+    print("  → Diversity is necessary, not sufficient: when cross-model pairs both break from")
+    print(f"    the majority, they still pick the same answer {100 * cross_r:.1f}% of the time, and this")
+    print(f"    panel of four families is worth {ne_raw:.1f} effective votes out of {n}.")
 
     print("\n--- scope -------------------------------------------------------------")
     print("  57 answerable items, 4 model families, one judge. This is a screen, not a")
