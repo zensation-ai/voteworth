@@ -8,8 +8,8 @@ authors:
     orcid: "https://orcid.org/0009-0001-1793-012X"
     affiliation: "Zensation AI"
 license: Apache-2.0
-version: 0.1.1
-date-released: 2026-11-13
+version: 0.1.2
+date-released: 2026-11-15
 repository-code: "https://github.com/zensation-ai/voteworth"
 abstract: >
   Measures whether an LLM voter or judge panel can produce an independent majority, corrects
