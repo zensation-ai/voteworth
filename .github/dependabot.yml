@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Keeps the pinned GitHub Actions current. Python dependencies are left
+  # out on purpose: the only runtime dependency is numpy, and its lower bound
+  # is a choice for the users of the library, not something to raise
+  # automatically.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
