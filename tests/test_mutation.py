@@ -36,6 +36,14 @@ _SOURCE = _ROOT / "src" / "voteworth" / "aggregate.py"
 # Non-code files the copied tests read. Kept beside the copy itself so the two cannot drift.
 _SANDBOX_FILES = ("README.md", "NOTICE", "pyproject.toml", "CITATION.cff")
 
+# The whole suite runs against each mutant, not only test_aggregate.py. Until 0.1.4 the gate
+# ran that one file, so the tests added later (README claims, docstring claims, contracts)
+# were never asked whether they would notice a broken mechanism (review of 2026-11-21). The
+# copy therefore carries the whole tree; build output, caches and git metadata stay behind.
+_SANDBOX_IGNORE = shutil.ignore_patterns(
+    ".git", "build", "dist", "*.egg-info", "__pycache__", ".pytest_cache", ".venv", "venv*"
+)
+
 # (name, needle, replacement, the claim this mutation attacks)
 MUTATIONS = [
     (
@@ -60,13 +68,20 @@ MUTATIONS = [
 
 
 def _run_suite(package_root: Path) -> subprocess.CompletedProcess:
-    """Run the unit tests (not this file) against a given copy of the package."""
+    """Run the whole suite except this file against a given copy of the package.
+
+    This file stays in the copy and is only left out of the run: the test-count guard in
+    test_readme_claims.py collects the suite in the copy and must find the same count the
+    README advertises, this file included.
+    """
     return subprocess.run(
         [
             sys.executable,
             "-m",
             "pytest",
-            str(package_root / "tests" / "test_aggregate.py"),
+            str(package_root / "tests"),
+            "--ignore",
+            str(package_root / "tests" / "test_mutation.py"),
             "-q",
             "--no-header",
             "-p",
@@ -84,9 +99,7 @@ def sandbox():
     """An isolated copy of the package, so a mutation can never touch the real source."""
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "pkg"
-        shutil.copytree(_ROOT / "src", root / "src")
-        shutil.copytree(_ROOT / "tests", root / "tests")
-        (root / "tests" / "test_mutation.py").unlink()  # do not recurse into ourselves
+        shutil.copytree(_ROOT, root, ignore=_SANDBOX_IGNORE)
 
         # The surfaces the copied tests read. test_aggregate.py parses the boundary figures
         # out of the README, so a sandbox without it fails for a reason that has nothing to
@@ -94,7 +107,6 @@ def sandbox():
         # have. Asserted rather than assumed: a test that later reads a file missing from
         # this list should say so, not report a mutation that was never applied.
         for name in _SANDBOX_FILES:
-            shutil.copy2(_ROOT / name, root / name)
             assert (root / name).exists(), f"sandbox is missing {name}"
         yield root
 

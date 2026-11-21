@@ -49,7 +49,9 @@ _SWEEPING = re.compile(
 # "a test mentions the topic" — the assertion has to carry the sentence.
 CLAIMS: dict[str, str] = {
     # --- bound to a test -------------------------------------------------------
-    "cannot be repaired by reweighting": "test:test_same_model_panel_is_inert",
+    # Narrowed on 2026-11-21 from "by reweighting": the test binds provenance weights only, and
+    # from four voters of one model up the learned weight can move (test_docstring_contracts).
+    "cannot be repaired by provenance weighting": "test:test_same_model_panel_is_inert",
     "does nothing at all": "test:test_same_model_panel_is_inert",
     "every voter carries the same weight": "test:test_same_model_panel_is_inert",
     "An empty history yields uniform weights": "test:test_no_history_no_penalty",
@@ -57,6 +59,29 @@ CLAIMS: dict[str, str] = {
         "test:test_dominant_bloc_is_invisible_to_the_weights"
     ),
     "For every pair of voters": "test:test_independence_weights_downweight_correlated_bloc",
+    # Added on 2026-11-21 with the reviews of 0.1.4: n_eff rises with accuracy, with unequal
+    # items and with shared errors; the signature is a group at full weight while the others are
+    # down-weighted; the same-model contrast holds against votes shuffled within each item.
+    "with every learned weight at 1.0": "test:test_raw_n_eff_rises_with_accuracy_alone",
+    "every weight drops to 0.10": "test:test_two_answer_options_put_every_weight_at_one_tenth",
+    "once it never deviates from the plurality": (
+        "test:test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not"
+    ),
+    "lower n_eff with every weight at full when no two voters give the same wrong answer": (
+        "test:test_unequal_items_lower_n_eff_with_every_weight_at_full"
+    ),
+    "independent voters score low with every weight down": (
+        "test:test_two_answer_options_put_every_weight_at_one_tenth"
+    ),
+    "none of which isolates that dependence on its own": (
+        "test:test_two_answer_options_put_every_weight_at_one_tenth"
+    ),
+    "an item on which only one voter is wrong as full coincidence": (
+        "test:test_the_printed_baseline_is_what_independent_voters_score"
+    ),
+    "keeps every item's answers and drops who gave them": (
+        "test:test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives"
+    ),
     # --- unbindable, with the reason -------------------------------------------
     "A passing suite proves nothing on its own": (
         "not a claim about this code — it is the reason the mutation gate exists, and that "

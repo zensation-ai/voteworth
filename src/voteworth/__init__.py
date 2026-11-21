@@ -1,7 +1,7 @@
 """Independence-weighted aggregation for LLM voter and judge panels.
 
-Tells you whether your panel can produce an independent majority — and by how much its
-agreement-confidence is overstated when it cannot.
+Shows how often two voters that both break from the plurality pick the same answer, reweights
+the vote for voters that do, and says where that cannot work.
 """
 
 from voteworth.aggregate import (
@@ -17,7 +17,7 @@ from voteworth.aggregate import (
     structural_weights,
 )
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 __all__ = [
     "agreement_confidence",

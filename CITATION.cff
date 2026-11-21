@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "voteworth: how many independent votes your LLM judge panel is actually worth"
+title: "voteworth: independence-weighted aggregation for LLM voter and judge panels"
 message: "If you use this software, please cite the measurement note below."
 type: software
 authors:
@@ -8,16 +8,18 @@ authors:
     orcid: "https://orcid.org/0009-0001-1793-012X"
     affiliation: "Zensation AI"
 license: Apache-2.0
-version: 0.1.3
+version: 0.1.4
 date-released: 2026-11-21
 repository-code: "https://github.com/zensation-ai/voteworth"
 abstract: >
-  Measures whether an LLM voter or judge panel can produce an independent majority, corrects
-  the vote for correlated voters, and reports when it cannot. Voters drawn from the same model
-  share their error modes, so a correlated bloc can win a plain majority while being wrong and
-  have its agreement read as confidence. The package learns a per-voter independence weight
-  from a vote history, or derives one from provenance labels when no history exists. It states
-  its own boundary: on a panel that is one model throughout, the correction is provably inert.
+  Measures how often two voters of an LLM voter or judge panel pick the same answer when both
+  break from the plurality, corrects the vote for voters that do, and reports where it
+  cannot. Voters drawn from the same model share their error modes, so a correlated bloc can win
+  a plain majority while being wrong and have its agreement read as confidence. The package
+  learns a per-voter independence weight from a vote history, or derives one from provenance
+  labels when no history exists. It states its own boundaries: on a panel that is one model
+  throughout, the provenance correction is provably inert, and a bloc that votes in lockstep
+  and holds the plurality never deviates from it, so the learned weight cannot see it.
 keywords:
   - llm-as-judge
   - self-consistency

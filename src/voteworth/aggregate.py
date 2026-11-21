@@ -3,26 +3,30 @@
 The problem this solves
 ----------------------
 When several LLM writers, judges or samples vote on an answer, the usual move is a plain
-majority: one voter, one vote. That silently assumes the voters are independent. They are
-not. Voters drawn from the same model — or the same model sampled several times — share
+majority: one voter, one vote. That silently assumes the voters are independent. They often
+are not. Voters drawn from the same model — or the same model sampled several times — share
 their *error modes*: when they are wrong, they tend to be wrong in the same way. A
-correlated bloc then wins the majority while being wrong, and the agreement among its
+correlated bloc then wins the vote while being wrong, and the agreement among its
 members is read as confidence.
 
-This module measures that correlation and corrects for it.
+This module measures how often two voters that both break from the plurality pick the same
+answer, and corrects the vote for it.
 
 `learn_independence_weights` looks at a vote history and, for each pair of voters, asks:
 of the items where both deviated from the panel's plurality, how often did they deviate
-with the *same* value? A voter that shares its errors with others is redundant and gets
-down-weighted; a voter that errs in its own way keeps full weight.
+with the *same* value? A voter that deviates with the same value as others is treated as
+redundant and gets down-weighted; a voter that deviates in its own way keeps full weight. With
+two answer options every deviation has the same value, so independent voters are treated so too.
 
 The structural limit, stated up front
 -------------------------------------
-If every voter in a panel is the same model, this repair does nothing. All voters receive
-the same weight, normalisation makes it uniform, and the weighted result is identical to
-the naive one. That is not a tuning problem — it is what the method can and cannot do, and
-`examples/quickstart.py` prints it as `INERT`. A panel that cannot disagree independently
-cannot be repaired by reweighting; it has to be made diverse.
+If every voter in a panel is the same model, the provenance weight (`structural_weights`)
+does nothing. All voters receive the same weight, normalisation makes it uniform, and the
+weighted result is identical to the naive one. That is not a tuning problem — it is what
+provenance can and cannot tell apart, and `python -m voteworth.demo` prints it as `INERT`.
+The learned weight is not bound by this: from four voters of one model up, it can
+down-weight voters that co-deviate. A panel that is one model throughout cannot be
+repaired by provenance weighting; it has to be made diverse.
 
 Everything here is deterministic, pure logic, and has no I/O and no LLM calls.
 """
@@ -95,7 +99,7 @@ def learn_independence_weights(history, n_voters: int):
     weight[i] = 1 / (1 + R[i]) with R[i] = Σ_{j≠i} co_same[i][j] / co_both[i][j].
 
     A voter that never co-deviates has R = 0 and keeps weight 1.0. A voter locked to one
-    partner (always the same wrong answer together) has R = 1 and drops to 0.5.
+    partner (always deviating together, with the same answer) has R = 1 and drops to 0.5.
 
     An empty history, or one that never produces two simultaneous deviations, yields uniform
     weights — nothing was observed, so nothing is claimed.
@@ -112,10 +116,11 @@ def learn_independence_weights(history, n_voters: int):
 
 
 def pairwise_coerror(history, n_voters: int):
-    """Diagnostic: the shared-error rate for every voter pair.
+    """Diagnostic: the co-deviation rate for every voter pair.
 
     Of the items where both voters deviated from the plurality, the fraction where they
-    deviated with the *same* value. High values mark a correlated bloc.
+    deviated with the *same* value. High values mark pairs that deviate together with the same
+    answer; deviating from the plurality is not the same as being wrong.
 
     Returns an n×n matrix, `np.nan` on the diagonal and wherever a pair never co-deviated —
     an undefined rate is reported as undefined, never as zero.
@@ -164,30 +169,51 @@ def structural_weights(sources):
 
 
 def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
-    """How many independent voters your panel is actually worth (Kish's effective sample size).
+    """Kish's effective sample size of a panel, from its mean pairwise agreement.
 
     n_eff = m / (1 + (m-1) * r̄), where r̄ is the mean pairwise agreement rate. A panel of ten
-    voters that all say the same thing is worth one; a panel of ten that never covary is worth
-    ten. Comparable to the figure reported for LLM judge panels in the literature.
+    voters that all say the same thing scores one; a panel of ten that never cast the same
+    vote scores ten. Figures reported for LLM judge panels in the literature rest on other
+    correlations (Kohli's about 2.2 for nine judges uses the phi of error indicators against
+    gold labels) and are not on the same scale.
+
+    Agreement rises with differences in difficulty between items, with shared errors, and with
+    accuracy once voters are right more often than not. On equally hard items, ten independent
+    voters that are each right 80% of the time and never give the same wrong answer agree on
+    about 64% of pairs and score about 1.48; with two answer options they agree on 68% and score
+    about 1.40. What
+    independent voters would score depends on what is assumed about the items, and n_eff alone
+    cannot settle it: `python -m voteworth.demo` prints two such figures for the bundled panel,
+    and how many items all ten voters got right, against how many independent voters on equally
+    hard items would. A lower n_eff does not mark the more dependent panel.
 
     `mode` selects what "agreeing" means:
       "raw"   — the two voters cast the same vote (no labels needed; the default).
       "error" — the two voters are both right or both wrong. Needs `truth`, so pass a history
-                of booleans instead; see the demo.
+                of booleans instead (True where the voter was right).
 
     **Read this together with the weights.** The two numbers answer different questions and
     disagree in exactly the case this package is weakest at: when one bloc holds the plurality,
-    n_eff keeps falling while the learned weights go flat, because a bloc that *is* the
-    plurality never deviates from it and so never registers as correlated. A low n_eff beside
-    uniform weights is the signature of that blind spot — see `bloc_share`.
+    n_eff keeps falling while the bloc's learned weight returns to full, because a bloc that
+    *is* the plurality never deviates from it and so never registers as correlated. The
+    signature of that blind spot is a group of voters that vote together, kept at full weight
+    while the others are down-weighted — see `bloc_share`; if the group at full weight is the
+    independent one, the weighting is doing its job. A low n_eff comes with it but is no
+    evidence on its own:
+    accurate voters and unequal items lower n_eff with every weight at full when no two voters
+    give the same wrong answer, and with few answer options independent voters score low with
+    every weight down.
 
     Caveat, stated because it is easy to over-read: Kish's formula is defined for an
-    intraclass correlation. Mean pairwise agreement is a stand-in for it, and a coarse one for
-    categorical labels. **The ordering carries; the second decimal does not.**
+    intraclass correlation. Mean pairwise agreement is a stand-in for it, a coarse one for
+    categorical labels, and it carries the voters' accuracy and the spread of item difficulty
+    with it.
 
     Both modes run the same computation; "error" only means the history holds booleans
-    (right/wrong) instead of votes. Any other value of `mode` raises, so that a typo cannot
-    pass silently.
+    (right/wrong) instead of votes. "error" rises with accuracy too once voters are right more
+    often than not, and with differences in item difficulty: two independent voters right 80%
+    of the time are both right or both wrong 68% of the time, as are two right 20% of the time.
+    Any other value of `mode` raises, so that a typo cannot pass silently.
     """
     if mode not in ("raw", "error"):
         raise ValueError(f'mode must be "raw" or "error", got {mode!r}')
@@ -214,11 +240,14 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
 def bloc_share(sources) -> float:
     """The share of the panel held by its largest provenance group.
 
-    Above 0.5 one group can carry the plurality on its own, and the shared-error statistic this
-    package relies on stops seeing it: the bloc never deviates from a plurality it constitutes,
-    so it accrues no penalty, while the independent minority co-deviates and is down-weighted.
-    Measured on a synthetic 10-voter panel with a 6-voter bloc, the weighted vote equals the
-    naive one and lands 20 points below the best single voter.
+    From 0.5 up one group can carry the plurality on its own; at exactly half it wins every tie
+    its answer wins on cluster id, as the first answer in input order does. The co-deviation
+    statistic this package relies on stops seeing it: the bloc never deviates from a plurality
+    it constitutes, so it accrues no penalty, while the independent minority co-deviates and is
+    down-weighted.
+    Measured on a synthetic 10-voter panel with a 6-voter bloc over twenty seeds, the weighted
+    vote equals the naive one in every run and lands a median 17 points below the best single
+    voter (test_dominant_bloc_is_invisible_to_the_weights).
 
     Check this before trusting the weights. There is no correction for it in this package.
     """
@@ -231,8 +260,8 @@ def bloc_share(sources) -> float:
 def agreement_confidence(votes, weights=None) -> float:
     """The share of the (weighted) vote mass that went to the winner.
 
-    This is the quantity most panels report as "confidence". It is returned here so that the
-    gap between it and measured accuracy can be computed — see `examples/quickstart.py`.
+    This is the quantity panels often report as "confidence". It is returned here so that the
+    gap between it and measured accuracy can be computed — see `python -m voteworth.demo`.
     Reporting it without that gap is exactly the failure this package is about.
     """
     valid = [(v, w) for v, w in zip(votes, weights or naive_weights(len(votes))) if v != -1]
@@ -248,14 +277,14 @@ def agreement_confidence(votes, weights=None) -> float:
 def cluster_answers(answers, embedder, thresh: float = 0.78):
     """Free-text answers → equivalence-class ids (the discrete votes), by embedding cosine.
 
-    Greedy single-link: each answer joins the first cluster whose centroid it matches at
-    cosine ≥ `thresh`, else starts a new one. Null answers get id -1. Deterministic in input
-    order.
+    Greedy, in one pass: each answer is compared with the first member of every cluster so far
+    and joins the most similar one if the cosine is ≥ `thresh`; otherwise it starts a new
+    cluster. Null answers get id -1. Deterministic in input order.
 
     `embedder` is any object with `.encode(list[str], normalize_embeddings=True) -> ndarray`.
 
     Caution, learned the hard way: for short *factual* answers, embedding cosine conflates
-    distinct facts — two different dates sit above any paraphrase threshold. Use
+    distinct facts — two different dates can sit above a typical paraphrase threshold. Use
     `cluster_answers_by_fn` there.
 
     Returns (labels, reps): the cluster id per answer, and one representative string per
@@ -295,8 +324,8 @@ def cluster_answers_by_fn(answers, equal_fn):
     Identical normalised strings short-circuit to equal *without* calling it. Null answers get
     id -1. Deterministic in input order.
 
-    This is the accurate path for short factual answers, where embedding cosine merges
-    distinct facts.
+    This is the more accurate path for short factual answers, where embedding cosine can
+    merge distinct facts.
 
     Returns (labels, reps).
     """

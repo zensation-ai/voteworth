@@ -6,6 +6,7 @@ checkout of the repository.
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -56,6 +57,57 @@ def evaluate(items, votes, truth, weights, subset=None):
     return hits / n, sum(confs) / n
 
 
+def _voter_accuracies(rows, truth, n):
+    acc = []
+    for i in range(n):
+        cast = [(r[i], t) for r, t in zip(rows, truth) if r[i] != -1]
+        acc.append(sum(v == t for v, t in cast) / len(cast) if cast else 0.0)
+    return acc
+
+
+def _all_right(rows, truth, n):
+    """How many items every voter got right, and how many independent voters with these
+    accuracies would get right on equally hard items: the sum over items of the product of the
+    accuracies. Unequal items and voters that are right together both push the count above that
+    figure, and the count cannot say which.
+    """
+    expected = len(rows) * math.prod(_voter_accuracies(rows, truth, n))
+    return sum(all(v == t for v in r) for r, t in zip(rows, truth)), expected
+
+
+def _independent_baseline(rows, truth, n, distinct_wrong=False):
+    """What independent voters with these accuracies would score if every item were equally hard
+    (needs gold labels).
+
+    Each voter is right on every item with its own accuracy p. For voters i and j on an item
+    they both answered, the expected agreement is p_i*p_j + (1-p_i)*(1-p_j)*S, where S is the sum
+    of the squared shares of the wrong answers given on that item: 0 on an item without wrong
+    answers, 1 on an item on which only one voter is wrong. With `distinct_wrong`, S = 0 on every
+    item. If the items differ in difficulty, neither figure is what independent voters would
+    score on them; beside it the demo prints how many items all voters got right, and how many
+    independent voters on equally hard items would. Computed, not sampled, so the demo prints the
+    same figure on every run.
+    """
+    acc = _voter_accuracies(rows, truth, n)
+    shares = []
+    for r, t in zip(rows, truth):
+        wrong = [v for v in r if v != -1 and v != t]
+        if distinct_wrong or not wrong:
+            shares.append(0.0)
+        else:
+            shares.append(sum((wrong.count(w) / len(wrong)) ** 2 for w in set(wrong)))
+    rates = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            both = [s for r, s in zip(rows, shares) if r[i] != -1 and r[j] != -1]
+            if both:
+                rates.append(sum(acc[i] * acc[j] + (1 - acc[i]) * (1 - acc[j]) * s for s in both) / len(both))
+    if not rates:
+        return float(n)
+    r_bar = sum(rates) / len(rates)
+    return n / (1.0 + (n - 1) * r_bar)
+
+
 def main() -> None:
     d = json.loads(DATA.read_text())
     votes, truth, panel = d["votesByItem"], d["correctGroupByItem"], d["panel"]
@@ -84,15 +136,15 @@ def main() -> None:
         for j in range(i + 1, n):
             if m[i][j] == m[i][j]:  # not NaN
                 (same if panel[i]["model"] == panel[j]["model"] else cross).append(m[i][j])
-    print("\n=== 1. When two voters both break from the majority, do they pick the same answer? ===")
+    print("\n=== 1. When two voters both break from the plurality, do they pick the same answer? ===")
     same_r, cross_r = mean_or_none(same), mean_or_none(cross)
     print(f"  same model      {pct_or_dash(same_r)}   ({len(same)} pairs)")
     print(f"  different model {pct_or_dash(cross_r)}   ({len(cross)} pairs)")
 
     # The same comparison under three different choices. Nothing about the votes changes; only
     # which items count, what "agreeing" means on them, and how pairs are averaged. The ratio
-    # swings by a factor of seven while the absolute gap barely moves — which is why a ratio
-    # quoted without its base cannot be compared to anyone else's.
+    # swings by a factor of eight while the absolute gap moves by a factor of 2.5 — which is
+    # why a ratio quoted without its base cannot be compared to anyone else's.
     def _gap(pred):
         s_hit = s_tot = c_hit = c_tot = 0
         for t in answerable:
@@ -139,7 +191,7 @@ def main() -> None:
     for label, pred in (
         ("both deviate from plurality (used here)", _codeviate),
         ("both wrong", _both_wrong),
-        ("raw agreement, all items", _raw),
+        ("raw agreement, all 57 items", _raw),
     ):
         sr, cr = _gap(pred)
         if sr is None or cr is None:
@@ -159,18 +211,34 @@ def main() -> None:
               f"({same_r:.3f} / {cross_r:.3f});")
         print(f"  pooling over events gives {sr_p:.3f} / {cr_p:.3f}, because pairs contribute "
               f"unequally.")
-    print("  → The ABSOLUTE gap is stable across all of this; the ratio is not. Published")
-    print("    absolute gaps sit in the same band. Match base, definition and averaging")
-    print("    before comparing your panel to anyone else's number.")
+    print("  → The ABSOLUTE gap moves less than the ratio across all of this. Published")
+    print("    studies measure related but different quantities: match base, definition")
+    print("    and averaging before comparing your panel to anyone else's number.")
 
     ne_raw = effective_votes([votes[t] for t in answerable], n)
+    ne_all = effective_votes(votes, n)
+    rows, gold = [votes[t] for t in answerable], [truth[t] for t in answerable]
+    ne_ind = _independent_baseline(rows, gold, n)
+    ne_ind_distinct = _independent_baseline(rows, gold, n, distinct_wrong=True)
+    all_right, all_right_expected = _all_right(rows, gold, n)
     share = bloc_share([p["model"] for p in panel])
-    print(f"\n  effective votes (Kish):     {ne_raw:.2f} of {n}")
-    print(f"  largest provenance share:   {share:.0%}")
-    if share > 0.5:
-        print("  ⚠ ONE GROUP HOLDS THE MAJORITY. The shared-error statistic below cannot see it:")
-        print("    a bloc that IS the plurality never deviates from it, so it is never penalised,")
-        print("    while the independent minority is. Do not trust the weights in this regime.")
+    print(f"\n  effective votes (Kish, raw agreement):   {ne_raw:.2f} of {n}")
+    print(f"    on the {len(rows)} items with a gold answer; on all {len(votes)} items: {ne_all:.2f}")
+    print("  independent voters with these accuracies, if every item were equally hard:")
+    print(f"    wrong answers coinciding as on each item:   {ne_ind:.2f}")
+    print(f"    no two wrong answers alike:                 {ne_ind_distinct:.2f}")
+    print(f"  items all {n} voters got right:           {all_right} of {len(rows)}")
+    print(f"    independent voters with these accuracies on equally hard items: {all_right_expected:.2f}")
+    print("  → Raw agreement rises with accuracy once voters are right more often than not, with")
+    print("    differences in item difficulty and with shared errors; n_eff alone cannot tell them apart.")
+    print(f"  largest provenance share:                {share:.0%}")
+    # From half the panel up, not above it: at exactly half a bloc wins every tie its answer
+    # wins on cluster id, and the first answer in input order gets the smallest id. A rigid
+    # five-of-ten bloc in front keeps full weight while the others are penalised (2026-11-21).
+    if share >= 0.5:
+        print("  ⚠ ONE GROUP HOLDS HALF THE PANEL OR MORE. The co-deviation statistic below cannot see it:")
+        print("    a bloc that IS the plurality, or wins its ties, never deviates from it, so it is never")
+        print("    penalised, while the independent minority is. Do not trust the weights in this regime.")
 
     # ── 2. the repair ─────────────────────────────────────────────────────────
     best_single = max(
@@ -180,15 +248,15 @@ def main() -> None:
     naive_acc, naive_conf = evaluate(test_items, votes, truth, naive_weights(n))
     learn_acc, learn_conf = evaluate(test_items, votes, truth, learned)
 
-    print(f"\n=== 2. Does the panel beat its own best member? (held-out, n={len(test_items)}) ===")
+    print(f"\n=== 2. What does weighting change on held-out items? (n={len(test_items)}) ===")
     print(f"  {'':22} {'accuracy':>9} {'confidence':>11} {'overconfidence':>15}")
-    print(f"  {'best single voter':22} {pct(best_single):>9} {'—':>11} {'—':>15}")
+    print(f"  {'best voter, post hoc':22} {pct(best_single):>9} {'—':>11} {'—':>15}")
     print(f"  {'plain majority':22} {pct(naive_acc):>9} {pct(naive_conf):>11} "
           f"{pct(naive_conf - naive_acc):>15}")
     print(f"  {'independence-weighted':22} {pct(learn_acc):>9} {pct(learn_conf):>11} "
           f"{pct(learn_conf - learn_acc):>15}")
-    verdict = "below" if naive_acc < best_single else "at or above"
-    print(f"  → The plain majority lands {verdict} the best single voter.")
+    print("  → The best voter is picked on these same items, after the fact: no rival you could")
+    print("    have chosen in advance.")
     print(f"  → Weighting moves accuracy by {100 * (learn_acc - naive_acc):+.1f} pp and "
           f"overconfidence by {100 * ((learn_conf - learn_acc) - (naive_conf - naive_acc)):+.1f} pp.")
 
@@ -208,13 +276,10 @@ def main() -> None:
         tag = "INERT — weighting changed nothing" if inert else "changed the outcome"
         print(f"  {len(subset)}x {model:22} acc {pct(a_naive)} → {pct(a_w)}   {tag}")
     print("  → Provenance weighting needs voters from different sources. A same-model panel")
-    print("    cannot be repaired by reweighting; it has to be made diverse.")
-    print("  → Diversity is necessary, not sufficient: when cross-model pairs both break from")
-    print(f"    the majority, they still pick the same answer {100 * cross_r:.1f}% of the time, and this")
-    print(f"    panel of four families is worth {ne_raw:.1f} effective votes out of {n}.")
+    print("    cannot be repaired by provenance weighting; it has to be made diverse.")
 
     print("\n--- scope -------------------------------------------------------------")
-    print("  57 answerable items, 4 model families, one judge. This is a screen, not a")
+    print("  57 answerable items, 4 models, one judge. This is a screen, not a")
     print("  benchmark: it shows the mechanism on one panel, and claims no ranking between")
     print("  models. Your panel will differ — run it on your own vote history.")
     print("  Data 10.5281/zenodo.21773065 · measurement 10.5281/zenodo.21775275\n")

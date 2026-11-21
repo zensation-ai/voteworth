@@ -7,14 +7,16 @@ sampled. Two tests carry the package's claims:
   correlated bloc wins a plain majority while being wrong, and the learned weighting recovers
   the truth.
 * `test_same_model_panel_is_inert` — the package's stated *limit*: on a panel that is one
-  model throughout, the repair provably does nothing. A claim and its boundary should both be
-  tests, not prose.
+  model throughout, the provenance weight provably does nothing. (The learned weight is not
+  bound by this from four voters of one model up; see test_docstring_contracts.py.) A claim and
+  its boundary should both be tests, not prose.
 
 Whether these tests can actually fail is itself checked, in `test_mutation.py`.
 """
 from __future__ import annotations
 
 import random
+import statistics
 
 import numpy as np
 
@@ -135,7 +137,8 @@ def test_pairwise_coerror_signal():
 
 
 def test_same_model_panel_is_inert():
-    """The package's boundary claim: a panel that is one model throughout cannot be repaired.
+    """The package's boundary claim: a panel that is one model throughout cannot be repaired by
+    provenance weighting.
 
     Every voter shares the one source label, so structural weights are uniform after
     normalisation and the weighted winner equals the naive winner — for *every* vote pattern.
@@ -195,30 +198,57 @@ def test_dominant_bloc_is_invisible_to_the_weights():
     about that draw. Over seeds 0-19 the gap to the best single voter runs 0.132 to 0.218
     (median 0.172), so the assertion below is set under the observed minimum.
     """
-    n_bloc, n_indep = 6, 4
-    n = n_bloc + n_indep
     truth_gaps = []
 
     for seed in range(20):
-        history = _bloc_panel(n_bloc, n_indep, seed=seed)
-        w = learn_independence_weights(history, n)
-
-        bloc_w = sum(w[:n_bloc]) / n_bloc
-        indep_w = sum(w[n_bloc:]) / n_indep
+        run = boundary_run(seed)
         # The failure, asserted: the correlated bloc keeps FULL weight...
-        assert bloc_w == 1.0, f"seed {seed}: bloc weight {bloc_w}"
+        assert run["bloc_w"] == 1.0, f"seed {seed}: bloc weight {run['bloc_w']}"
         # ...while the independent voters are the ones penalised.
-        assert indep_w < bloc_w, f"seed {seed}"
+        assert run["indep_w"] < run["bloc_w"], f"seed {seed}"
 
-        truth = [0] * len(history)
-        acc_naive = sum(aggregate(r, naive_weights(n)) == t for r, t in zip(history, truth)) / len(history)
-        acc_w = sum(aggregate(r, w) == t for r, t in zip(history, truth)) / len(history)
-        best = max(sum(r[i] == t for r, t in zip(history, truth)) / len(history) for i in range(n))
-
-        assert abs(acc_naive - acc_w) < 1e-12, f"seed {seed}: weighting is not inert"
-        truth_gaps.append(best - acc_w)
+        assert abs(run["acc_naive"] - run["acc_w"]) < 1e-12, f"seed {seed}: weighting is not inert"
+        truth_gaps.append(run["best"] - run["acc_w"])
 
     assert min(truth_gaps) > 0.11, f"gaps: min={min(truth_gaps):.3f}"
+
+
+def boundary_run(seed, n_bloc=6, n_indep=4):
+    """One draw of the boundary experiment above: weights, both accuracies, the best voter.
+
+    Shared with tests/test_docstring_claims.py, which binds the figure the docstring of
+    `bloc_share` quotes from this experiment. One computation, so that the docstring check and
+    the boundary test cannot drift apart.
+    """
+    n = n_bloc + n_indep
+    history = _bloc_panel(n_bloc, n_indep, seed=seed)
+    w = learn_independence_weights(history, n)
+    truth = [0] * len(history)
+    return {
+        "bloc_w": sum(w[:n_bloc]) / n_bloc,
+        "indep_w": sum(w[n_bloc:]) / n_indep,
+        "acc_naive": sum(aggregate(r, naive_weights(n)) == t for r, t in zip(history, truth)) / len(history),
+        "acc_w": sum(aggregate(r, w) == t for r, t in zip(history, truth)) / len(history),
+        "best": max(sum(r[i] == t for r, t in zip(history, truth)) / len(history) for i in range(n)),
+    }
+
+
+def boundary_summary(seeds=range(20)):
+    """The figures the README and the docstring of `bloc_share` quote from the experiment above.
+
+    How many runs keep the bloc at full weight, the independents' mean weight, how many runs
+    leave the weighted vote equal to the naive one, and the median gap to the best single voter
+    in points. test_readme_claims.py and test_docstring_claims.py both read it here, so that a
+    change to the experiment turns the README and the docstring red together.
+    """
+    runs = [boundary_run(seed) for seed in seeds]
+    return {
+        "runs": len(runs),
+        "bloc_at_full": sum(run["bloc_w"] == 1.0 for run in runs),
+        "indep_w": statistics.mean(run["indep_w"] for run in runs),
+        "naive_equal": sum(abs(run["acc_naive"] - run["acc_w"]) < 1e-12 for run in runs),
+        "median_points": round(100 * statistics.median(run["best"] - run["acc_w"] for run in runs)),
+    }
 
 
 def test_bloc_share_flags_the_regime():
@@ -230,8 +260,9 @@ def test_bloc_share_flags_the_regime():
 
 
 def test_effective_votes_falls_as_the_bloc_grows():
-    """n_eff is the second number: it keeps dropping through the regime where the weights go
-    flat. That divergence is how the blind spot becomes visible from outside."""
+    """n_eff is the second number: it keeps dropping through the regime where the bloc's weight
+    returns to full. A low n_eff alone is no evidence (accurate voters and unequal items lower it
+    too); what marks the blind spot is the bloc at full weight while the others are down-weighted."""
     n = 10
     seen = []
     for n_bloc in (3, 5, 6, 8):
@@ -293,6 +324,12 @@ def test_agreement_confidence_basic():
 def test_agreement_confidence_ignores_abstentions():
     # two real votes, one abstention → unanimity among those who voted
     assert agreement_confidence([0, 0, -1]) == 1.0
+
+
+def test_agreement_confidence_with_no_weight_left_is_zero():
+    """The error path `total <= 0`: valid votes whose weights are all zero carry no mass, and
+    no mass is no confidence, not a division by zero. Unreached by any test until 0.1.4."""
+    assert agreement_confidence([0, 1, 1], [0.0, 0.0, 0.0]) == 0.0
 
 
 def test_agreement_confidence_drops_when_bloc_is_downweighted():
@@ -457,7 +494,7 @@ def _demo_output(data_path):
         demo.DATA = original
 
 
-_WARNING = "ONE GROUP HOLDS THE MAJORITY"
+_WARNING = "ONE GROUP HOLDS HALF THE PANEL OR MORE"
 
 
 def test_demo_warns_when_one_group_holds_the_majority(tmp_path):
@@ -469,21 +506,28 @@ def test_demo_warns_when_one_group_holds_the_majority(tmp_path):
     """
     out = _demo_output(_synthetic_panel_file(tmp_path, n_bloc=6))
     assert _WARNING in out, (
-        "a six-of-ten provenance bloc did not trigger the majority warning:\n" + out
+        "a six-of-ten provenance bloc did not trigger the warning:\n" + out
     )
     assert "cannot see it" in out, "the warning fired without its explanation"
+
+
+def test_demo_warns_at_exactly_half(tmp_path):
+    """Five of ten is not a majority, but it is enough: at exactly half a bloc wins every tie
+    its answer wins on cluster id, and a rigid five-of-ten bloc in front keeps full weight
+    (test_a_half_bloc_in_front_keeps_full_weight). The threshold is `share >= 0.5` since 0.1.4;
+    until then it was strict and stayed silent here (review of 2026-11-21)."""
+    out = _demo_output(_synthetic_panel_file(tmp_path, n_bloc=5))
+    assert _WARNING in out, "the warning did not fire at exactly 50%:\n" + out
 
 
 def test_demo_stays_quiet_below_the_threshold(tmp_path):
     """The discriminating half. A warning that always prints carries no information.
 
-    Five of ten is not a majority: `share > 0.5` is strict, and the boundary is where an
-    off-by-one would live.
+    Four of ten is below half; the boundary at half is where an off-by-one would live, and the
+    test above holds the other side of it.
     """
-    out = _demo_output(_synthetic_panel_file(tmp_path, n_bloc=5))
-    assert _WARNING not in out, (
-        "the warning fired at exactly 50%, where the documented threshold is strictly above"
-    )
+    out = _demo_output(_synthetic_panel_file(tmp_path, n_bloc=4))
+    assert _WARNING not in out, "the warning fired at 40%, below the documented threshold of half"
 
 
 def test_bundled_demo_does_not_warn():

@@ -31,6 +31,8 @@ from pathlib import Path
 
 import pytest
 
+from test_aggregate import _bloc_panel, boundary_run, boundary_summary
+
 _ROOT = Path(__file__).resolve().parent.parent
 _README = _ROOT / "README.md"
 
@@ -68,6 +70,7 @@ _NOT_A_MEASUREMENT = re.compile(
     r"|\bclaude-\S+|\bmistral-\S+"        # ditto
     r"|\bApache-[\d.]+|CC BY [\d.]+"       # licence versions
     r"|\bPython [\d.]+|>=[\d.]+"           # version constraints
+    r"|\bv?\d+\.\d+\.\d+\b"                # release numbers of other packages: 0.2.0
 )
 
 
@@ -105,50 +108,256 @@ def test_readme_output_block_matches_a_real_run(readme, demo_output):
     )
 
 
-# Percentages the README quotes from OTHER people's measurements or from the synthetic
-# boundary experiment — they cannot appear in a live demo run, and each is listed here with
-# where it comes from. Anything in the prose that is NOT on this list is a claim about our own
-# run and must be reproducible from it.
+def _output_block(readme: str) -> list[str]:
+    """The lines of the fenced block under 'What it prints'."""
+    return readme.split("## What it prints", 1)[1].split("```", 2)[1].strip("\n").splitlines()
+
+
+def _block_problems(block: list[str], demo_output: str) -> list[str]:
+    """Where the README's output block departs from a live run; nothing if it is a run of it."""
+    out = demo_output.splitlines()
+    if not block:
+        return ["the block under 'What it prints' is empty"]
+    starts = [i for i, line in enumerate(out) if line == block[0]]
+    if not starts:
+        return [f"the block's first line is not printed by the demo: {block[0]!r}"]
+    best = []
+    for start in starts:
+        problems = [
+            f"block line {k + 1}: README {line!r}, run {out[start + k] if start + k < len(out) else None!r}"
+            for k, line in enumerate(block)
+            if start + k >= len(out) or out[start + k] != line
+        ]
+        if not problems:
+            return []
+        if not best or len(problems) < len(best):
+            best = problems
+    return best
+
+
+def test_readme_output_block_is_a_verbatim_run(readme, demo_output):
+    """Line for line, the block under 'What it prints' is a contiguous run of the demo's output.
+
+    The check above reads only the percentages. Two printed figures in each other's place, or an
+    n_eff line kept from an older run, passed it. Until 0.1.4 the line-for-line equality was
+    checked by hand before a release; it is a test now.
+    """
+    problems = _block_problems(_output_block(readme), demo_output)
+    assert not problems, "the README's output block is not what the demo prints:\n" + "\n".join(problems)
+
+
+def test_the_output_block_check_can_fire(readme, demo_output):
+    """Control arm: one figure changed in one line of the block is reported, on that line only."""
+    block = _output_block(readme)
+    k = next(i for i, line in enumerate(block) if "effective votes" in line)
+    changed = block[:k] + [re.sub(r"\d\.\d\d", "9.99", block[k], count=1)] + block[k + 1:]
+    assert changed[k] != block[k], "the arm changed nothing; has the block changed shape?"
+    problems = _block_problems(changed, demo_output)
+    assert len(problems) == 1 and problems[0].startswith(f"block line {k + 1}:"), problems
+
+
+# Figures the README quotes that a live demo run cannot print: other people's measurements, our
+# own measurement note, and values from the synthetic boundary experiment. Each is listed here
+# with where it comes from. Anything in the prose that is NOT on this list and not derived from
+# printed figures (`_derived_figures` below) is a claim about our own run and must be
+# reproducible from it.
 #
 # A README that cites the literature needs this list. Without it the test would either pass
 # vacuously (drop the prose check) or force us to delete honest citations — and the second
 # failure mode is worse than the first.
+#
+# Until 0.1.4 the list also carried 13.8, 2.3, 0.243 and 0.43, figures of our own declared away
+# by a note: three are arithmetic on printed figures, the fourth was said to come from twenty
+# seeds that no test ran (review of 2026-11-21). The first three are recomputed from the
+# printed run now; 0.43 is recomputed from the boundary experiment, and its entry names the test.
 FOREIGN_FIGURES = {
-    # other people's measurements
-    "2.2": "Kohli 2026 (arXiv:2605.29800): nine judges over seven families, effective votes",
-    "0.05": "lower end of published absolute same-family gaps, Kohli 2026",
-    "0.11": "upper end of that band, measured on this panel's raw-agreement base",
-    "0.42": "Kim et al. ICML 2025 (arXiv:2506.07962): cross-provider agreement when both wrong",
-    "0.6": "Kim et al. 2025: upper end of that cross-provider range (quoted as 0.60)",
-    "0.5": "the weight a voter locked to one partner receives; asserted in test_aggregate.py",
-    # The synthetic boundary experiment. 'Reproduced by tests/test_aggregate.py' used to
-    # mean the file asserted the series FALLS; the values themselves were unchecked, and
-    # two of the four were wrong. test_boundary_figures_match_the_readme now parses them
-    # out of the README and recomputes each one.
-    "1.91": "n_eff at a 3-of-10 bloc, synthetic, mean over five seeds",
-    "1.68": "n_eff at a 5-of-10 bloc, synthetic, mean over five seeds",
-    "1.55": "n_eff at a 6-of-10 bloc, synthetic, mean over five seeds",
-    "1.26": "n_eff at an 8-of-10 bloc, synthetic, mean over five seeds",
-    "0.43": "mean independent-voter weight in the boundary experiment, twenty seeds",
-    "1": "bloc weight 1.00 in the boundary experiment, unchanged across twenty seeds",
-    # the cited note, measured on all 57 items rather than the held-out half
-    "15.3": "the cited note (10.5281/zenodo.21775275): overconfidence on all 57 items",
-    "14.9": "the cited note: provenance-weighted overconfidence on all 57 items",
+    # ── cited work, including our own measurement note ───────────────────────────
+    # other people's measurements. Read at source on 2026-11-21; the README carries that date.
+    # Two entries here were wrong until then: a "band" of +0.05 to +0.11 that one of its two
+    # sources did not support, and a range attributed to cross-provider pairs that the source
+    # reports as the mean over ALL pairs. A provenance note is a claim too.
+    "2.2": "Kohli 2026 (arXiv:2605.29800, preprint): nine judges over seven families, effective "
+           "votes from the phi of error indicators against gold, not from raw agreement",
+    "0.047": "Kohli 2026, section 5.3: same-family minus cross-family phi of error indicators, MNLI",
+    "0.109": "Kohli 2026, section 5.3: the same difference on RewardBench",
+    "0.022": "Kim et al. ICML 2025 (arXiv:2506.07962), Table 1: same-company coefficient, Helm",
+    "0.066": "Kim et al. 2025, Table 1: same-company coefficient, HuggingFace leaderboard",
+    "0.42": "Kim et al. 2025, section 3.2: mean agreement over ALL model pairs when both are "
+            "wrong, HuggingFace leaderboard (0.423), quoted as the lower end of 0.42-0.60",
+    "0.423": "Kim et al. 2025, section 3.2: the same mean, HuggingFace leaderboard, unrounded",
+    "0.6": "Kim et al. 2025, section 3.2: the same mean over all pairs on Helm (also as 0.60)",
+    # our own measurement note (10.5281/zenodo.21775275), on all 57 items rather than the
+    # held-out half. Our own work, but not this run, so it is cited rather than produced.
+    "15.3": "our measurement note (10.5281/zenodo.21775275): overconfidence on all 57 items",
+    "14.9": "our measurement note: provenance-weighted overconfidence on all 57 items",
+    # ── the synthetic boundary experiment and other values bound by a named test ─────
+    # Not printed by the demo. Each entry names the test that recomputes the value, and
+    # test_foreign_figures_name_tests_that_exist holds those names to the suite. 'Reproduced by
+    # tests/test_aggregate.py' used to mean the file asserted the series FALLS; the values
+    # themselves were unchecked, and two of the four were wrong.
+    "1.91": "n_eff at a 3-of-10 bloc, mean over five seeds; test_boundary_figures_match_the_readme",
+    "1.68": "n_eff at a 5-of-10 bloc, mean over five seeds; test_boundary_figures_match_the_readme",
+    "1.55": "n_eff at a 6-of-10 bloc, mean over five seeds; test_boundary_figures_match_the_readme",
+    "1.26": "n_eff at an 8-of-10 bloc, mean over five seeds; test_boundary_figures_match_the_readme",
+    "0.43": "mean independent-voter weight over twenty seeds of the boundary experiment; "
+            "test_boundary_weights_and_gap_match_the_readme",
+    "1": "a weight at full: the bloc's 1.00 in the boundary experiment "
+         "(test_boundary_weights_and_gap_match_the_readme), a voter that never co-deviates "
+         "(test_independence_weights_downweight_correlated_bloc), and every learned weight of "
+         "ten independent voters right 80% of the time (test_raw_n_eff_rises_with_accuracy_alone)",
+    "1.4": "n_eff of ten independent voters right 80% of the time with two answer options; "
+           "test_two_answer_options_put_every_weight_at_one_tenth",
+    "0.1": "the learned weight of each of those ten voters; "
+           "test_two_answer_options_put_every_weight_at_one_tenth",
+    "0.5": "two uses: the weight a voter locked to one partner receives "
+           "(test_independence_weights_downweight_correlated_bloc), and the bloc share from "
+           "which the demo warns (test_demo_warns_at_exactly_half)",
     "0.333": "1/3, the structural weight of a three-voter bloc in the usage example; "
-             "asserted in test_structural_weights_downweight_shared_source",
-    # arithmetic on printed figures, not printed themselves
-    "13.8": "58.6 minus 44.8, derived from the run rather than printed by it",
-    "2.3": "42.8 divided by 18.5, derived from the run",
+             "test_structural_weights_downweight_shared_source and "
+             "test_readme_code_blocks_run_as_written",
 }
 
 
+# ── figures the README derives from printed ones ─────────────────────────────
+#
+# The README states figures that the demo does not print but that follow from figures it does:
+# the ratio of the same-model to the cross-model share, and the gap of the pair means. Each is
+# recomputed here from the printed run, so that a change which moves a printed figure moves the
+# derived one with it, and each is checked in the sentence that states it. Until the fourth
+# review of 0.1.4 (2026-11-21) the README also derived the plain majority's distance to the best
+# single voter; that voter is picked after the fact on the same items, and the comparison is gone.
+
+
+def _printed(pattern: str, demo_output: str) -> float:
+    match = re.search(pattern, demo_output, re.M)
+    assert match, f"the demo no longer prints a line matching {pattern!r}:\n{demo_output}"
+    return float(match.group(1))
+
+
+def _derived_figures(demo_output: str) -> dict[str, float]:
+    """The derived figures, from the printed run: what a reader of the output would compute."""
+    same = _printed(r"^  same model\s+(\d+\.\d)%", demo_output)
+    cross = _printed(r"^  different model\s+(\d+\.\d)%", demo_output)
+    pair_same = _printed(r"voter PAIRS \((\d\.\d{3}) / ", demo_output)
+    pair_cross = _printed(r"voter PAIRS \(\d\.\d{3} / (\d\.\d{3})\)", demo_output)
+    return {
+        "same-model over cross-model share": round(same / cross, 1),
+        "gap of the pair means": round(pair_same - pair_cross, 3),
+    }
+
+
+# The sentence that states each derived figure. The gap of the pair means is stated in the span
+# sentence and checked there (test_gap_span_and_ratio_factor_match_a_live_run).
+_DERIVED_SENTENCES = {
+    "same-model over cross-model share":
+        r"pick the same answer (\d+\.\d)× as often as cross-model pairs",
+}
+
+
+def _derived_problems(text: str, demo_output: str) -> list[str]:
+    derived = _derived_figures(demo_output)
+    flat = " ".join(text.replace("**", "").split())
+    problems = []
+    for key, pattern in _DERIVED_SENTENCES.items():
+        match = re.search(pattern, flat)
+        if not match:
+            problems.append(f"{key}: no sentence matching {pattern!r}")
+        elif float(match.group(1)) != derived[key]:
+            problems.append(f"{key}: text {match.group(1)}, recomputed from the run {derived[key]:g}")
+    return problems
+
+
+def test_derived_figures_are_recomputed_from_the_printed_run(readme, demo_output):
+    """The same-model ratio is arithmetic on printed figures, so it is recomputed from the printed
+    run rather than declared."""
+    problems = _derived_problems(readme, demo_output)
+    assert not problems, "the README's derived figures do not follow from a live run:\n" + "\n".join(problems)
+
+
+def test_the_derived_figure_check_can_fire(demo_output):
+    """Control arm: a derived figure one off must be reported."""
+    derived = _derived_figures(demo_output)
+    off = derived["same-model over cross-model share"] + 1
+    planted = f"Same-model pairs pick the same answer {off:.1f}× as often as cross-model pairs."
+    problems = _derived_problems(planted, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("same-model over cross-model share"), problems
+    assert len(_derived_problems("no such sentences here", demo_output)) == len(_DERIVED_SENTENCES)
+
+
+# ── the boundary experiment, as the README reports it ────────────────────────
+#
+# The boundary paragraph reports one experiment in a run of figures. Until 0.1.4 two of them
+# were checked nowhere: the independents' mean weight was declared in FOREIGN_FIGURES with
+# "twenty seeds" that no test ran, and the median gap was checked only in the docstring of
+# bloc_share (review of 2026-11-21). They are read out of the README here and compared with
+# `boundary_summary`, the computation the docstring check reads too.
+
+_BOUNDARY_SENTENCE = re.compile(
+    r"a synthetic (\w+)-voter panel with a (\w+)-voter bloc that is wrong together (\d+)% of the "
+    r"time, across (\w+) seeds: the bloc keeps full weight (\d\.\d\d) in (\d+)/(\d+) runs, the "
+    r"independents drop to (\d\.\d\d), the weighted vote is identical to the naive one in "
+    r"(\d+)/(\d+), and both land a median (\d+) points below the best single voter"
+)
+
+
+def _boundary_problems(text: str, summary: dict) -> list[str]:
+    """What is wrong with the boundary sentence in `text`, against the experiment's summary."""
+    import inspect
+
+    match = _BOUNDARY_SENTENCE.search(" ".join(text.replace("**", "").split()))
+    if not match:
+        return ["no boundary sentence of the form 'a synthetic N-voter panel with a B-voter bloc "
+                "… a median P points below the best single voter'"]
+    panel, bloc, wrong, seeds, full, at_full, runs, indep, equal, runs2, points = match.groups()
+    run_defaults = inspect.signature(boundary_run).parameters
+    n_bloc, n_indep = run_defaults["n_bloc"].default, run_defaults["n_indep"].default
+    p_right = inspect.signature(_bloc_panel).parameters["p_bloc_right"].default
+    expected = [
+        ("panel size", _WORD_NUMBERS.get(panel.lower()), n_bloc + n_indep),
+        ("bloc size", _WORD_NUMBERS.get(bloc.lower()), n_bloc),
+        ("items on which the bloc is wrong together, %", int(wrong), round(100 * (1 - p_right))),
+        ("seeds", _WORD_NUMBERS.get(seeds.lower()), summary["runs"]),
+        ("the bloc's weight", float(full), 1.0),
+        ("runs with the bloc at full weight", int(at_full), summary["bloc_at_full"]),
+        ("runs", int(runs), summary["runs"]),
+        ("the independents' mean weight", float(indep), round(summary["indep_w"], 2)),
+        ("runs with the weighted vote equal to the naive one", int(equal), summary["naive_equal"]),
+        ("runs", int(runs2), summary["runs"]),
+        ("median points below the best single voter", int(points), summary["median_points"]),
+    ]
+    return [f"{what}: text {said}, experiment {got}" for what, said, got in expected if said != got]
+
+
+def test_boundary_weights_and_gap_match_the_readme(readme):
+    """The boundary paragraph's figures are the boundary experiment's, over the seeds it names."""
+    problems = _boundary_problems(readme, boundary_summary())
+    assert not problems, "the README's boundary paragraph does not match the experiment:\n" + "\n".join(problems)
+
+
+def test_the_boundary_check_can_fire(readme):
+    """Control arm, constructed: the README's own sentence with the independents' weight one
+    hundredth off and the median three points off must be reported on exactly those two counts."""
+    summary = boundary_summary()
+    match = _BOUNDARY_SENTENCE.search(" ".join(readme.replace("**", "").split()))
+    assert match, "the README no longer carries the boundary sentence this arm plants into"
+    indep, points = match.group(8), match.group(11)
+    planted = (match.group(0)
+               .replace(f"drop to {indep}", f"drop to {float(indep) + 0.01:.2f}")
+               .replace(f"a median {points} points", f"a median {int(points) + 3} points"))
+    problems = _boundary_problems(planted, summary)
+    assert len(problems) == 2, problems
+    assert _boundary_problems("no such sentence here", summary), "a missing sentence passed"
+
+
 def test_readme_prose_numbers_are_produced(readme, demo_output):
-    """Every number in the prose is either reproducible from a live run or declared foreign.
+    """Every number in the prose is reproducible from a live run, derived from printed figures,
+    or declared in FOREIGN_FIGURES with its source.
 
     This is the assertion that stops the README drifting from the code. It does not forbid
     citing other people's figures — it forbids citing them *indistinguishably* from ours.
     """
-    produced = _decimals(demo_output) | _percentages(demo_output)
+    derived = {f"{value:g}" for value in _derived_figures(demo_output).values()}
+    produced = _decimals(demo_output) | _percentages(demo_output) | derived
     # The WHOLE file, not one section. Scoping this to a heading was how the boundary
     # section's figures went unchecked while the test reported green.
     unexplained = [
@@ -180,6 +389,35 @@ def test_foreign_figures_list_is_not_a_blanket(readme, demo_output):
     in_readme = _decimals(_README.read_text())
     unused = sorted(set(FOREIGN_FIGURES) - in_readme, key=float)
     assert not unused, f"declared but not present in the README: {unused} — delete them"
+
+    # And a derived figure must not be declared as well: the declaration would hide the check.
+    derived = {f"{value:g}" for value in _derived_figures(demo_output).values()}
+    assert not set(FOREIGN_FIGURES) & derived, (
+        f"declared foreign but derived from the run: {sorted(set(FOREIGN_FIGURES) & derived)}"
+    )
+
+
+def _all_test_names() -> set[str]:
+    names: set[str] = set()
+    for path in (_ROOT / "tests").glob("test_*.py"):
+        names |= set(re.findall(r"^def (test_\w+)", path.read_text(), re.M))
+    return names
+
+
+def test_foreign_figures_name_tests_that_exist():
+    """An entry that says which test recomputes its value must name a test that exists.
+
+    A provenance note pointing at a renamed or deleted test reads as coverage and is none.
+    """
+    names = _all_test_names()
+    assert names, "no tests discovered — this check is broken"
+    named = {
+        figure: re.findall(r"\btest_\w+", source) for figure, source in FOREIGN_FIGURES.items()
+    }
+    missing = {f: [t for t in tests if t not in names] for f, tests in named.items()}
+    missing = {f: ts for f, ts in missing.items() if ts}
+    assert not missing, f"FOREIGN_FIGURES names tests that do not exist: {missing}"
+    assert any(named.values()), "no entry names a test any more; has the list changed shape?"
 
 
 def test_advertised_module_command_runs():
@@ -217,6 +455,37 @@ def test_both_entry_points_agree():
         capture_output=True, text=True, cwd=_ROOT,
     ).stdout
     assert a == b, "the two entry points have drifted apart"
+
+
+def _version_problems(pyproject: str, init: str, citation: str) -> list[str]:
+    """The three places a release names its version, read as text."""
+    found = {
+        "pyproject.toml": re.search(r'^version = "([^"]+)"$', pyproject, re.M),
+        "__version__": re.search(r'^__version__ = "([^"]+)"$', init, re.M),
+        "CITATION.cff": re.search(r"^version: (\S+)$", citation, re.M),
+    }
+    missing = [k for k, m in found.items() if not m]
+    if missing:
+        return [f"no version found in {missing}"]
+    versions = {k: m.group(1) for k, m in found.items()}
+    return [] if len(set(versions.values())) == 1 else [f"the versions differ: {versions}"]
+
+
+def test_versions_agree():
+    """v0.1.1 shipped with __version__ still at 0.1.0. publish.yml stops such a release; this
+    finds it before one is made."""
+    problems = _version_problems(
+        (_ROOT / "pyproject.toml").read_text(),
+        (_ROOT / "src" / "voteworth" / "__init__.py").read_text(),
+        (_ROOT / "CITATION.cff").read_text(),
+    )
+    assert not problems, problems
+
+
+def test_the_version_check_can_fire():
+    """Control arm, constructed: the 0.1.1 mismatch must be reported."""
+    assert _version_problems('version = "0.1.1"\n', '__version__ = "0.1.0"\n', "version: 0.1.1\n")
+    assert not _version_problems('version = "0.1.4"\n', '__version__ = "0.1.4"\n', "version: 0.1.4\n")
 
 
 def test_cited_dois_are_consistent(readme):
@@ -497,3 +766,342 @@ def test_the_packaging_rule_check_can_fire():
     assert not [f for f in owned if f.startswith("notes") or f.endswith("demo.txt")], (
         "the scope reaches outside the package's own directories"
     )
+
+
+# ── spans, factors, roles and code: what a figure-by-figure check cannot see ────
+#
+# Everything above asks whether each figure is producible. A check before the 0.1.3 upload
+# (2026-11-21) found statements that passed it and were still wrong: a span that left out one
+# of the variants it claimed to cover, a factor read off three of four rows, a headline that
+# gave the ten voters the role of the one judge, and a code example that raised as written.
+# Each guard below is red on the 0.1.3 text, and its control arm plants that text and must fire.
+# Where the 0.1.3 text lacks the shape a guard reads, the arm plants the real 0.1.3 sentence,
+# which must be reported as missing, and a variant in today's shape carrying the 0.1.3 figures,
+# named in the arm as constructed. The span sentence is that case: in 0.1.3 it gave no range
+# for the ratio at all.
+
+_WORD_NUMBERS = {
+    "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+    "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "twenty": 20,
+}
+
+_SPAN_SENTENCE = re.compile(
+    r"The absolute gap stays between \+(\d\.\d{3}) and \+(\d\.\d{3}) through all of it; "
+    r"the ratio swings between \+(\d+)% and \+(\d+)%, a factor of (\w+)\."
+)
+
+
+def _printed_variants(demo_output: str) -> list[tuple[float, int]]:
+    """(gap, ratio in percent) for every variant the demo prints.
+
+    The three pooled rows are read as printed. The pair mean is printed only as its two rates,
+    so its gap and ratio are formed from those printed rates: the arithmetic a reader of the
+    output would do, and the reason "through all of it" has to include it.
+    """
+    rows = re.findall(
+        r"^  \S.*?\s(\d\.\d{3})\s+(\d\.\d{3})\s+\+(\d\.\d{3})\s+\+(\d+)%\s*$", demo_output, re.M
+    )
+    pair = re.search(r"voter PAIRS \((\d\.\d{3}) / (\d\.\d{3})\)", demo_output)
+    assert len(rows) == 3 and pair, (
+        f"the demo no longer prints the three rows and the pair mean this check reads:\n{demo_output}"
+    )
+    variants = [(float(gap), int(ratio)) for _, _, gap, ratio in rows]
+    same, cross = float(pair.group(1)), float(pair.group(2))
+    variants.append((round(same - cross, 3), round(100 * (same - cross) / cross)))
+    return variants
+
+
+def _span_problems(text: str, demo_output: str) -> list[str]:
+    """What is wrong with the span sentence in `text`, measured against a live run."""
+    match = _SPAN_SENTENCE.search(" ".join(text.split()))
+    if not match:
+        return ["no sentence of the form 'The absolute gap stays between +X and +Y through all "
+                "of it; the ratio swings between +A% and +B%, a factor of N.'"]
+    variants = _printed_variants(demo_output)
+    gaps = [gap for gap, _ in variants]
+    ratios = [ratio for _, ratio in variants]
+    factor = round(max(ratios) / min(ratios))
+    problems = []
+    if float(match.group(1)) != min(gaps):
+        problems.append(f"lowest gap: text +{match.group(1)}, run +{min(gaps):.3f}")
+    if float(match.group(2)) != max(gaps):
+        problems.append(f"highest gap: text +{match.group(2)}, run +{max(gaps):.3f}")
+    if int(match.group(3)) != min(ratios):
+        problems.append(f"lowest ratio: text +{match.group(3)}%, run +{min(ratios)}%")
+    if int(match.group(4)) != max(ratios):
+        problems.append(f"highest ratio: text +{match.group(4)}%, run +{max(ratios)}%")
+    if _WORD_NUMBERS.get(match.group(5).lower()) != factor:
+        problems.append(f"factor: text {match.group(5)!r}, run {factor}")
+    return problems
+
+
+def test_gap_span_and_ratio_factor_match_a_live_run(readme, demo_output):
+    """'Through all of it' means all four variants the demo prints, the pair mean included."""
+    problems = _span_problems(readme, demo_output)
+    assert not problems, "the README's span sentence does not match a live run:\n" + "\n".join(problems)
+
+
+def test_the_span_check_can_fire(demo_output):
+    """Control arm, two plantings.
+
+    The real 0.1.3 sentence, word for word, gives no range for the ratio, so the check must
+    report that it found no sentence of the form. The second planting is constructed, not
+    quoted: today's form carrying the 0.1.3 figures, read off three of the four variants
+    (highest gap, highest ratio, and the factor between the ratios), which must be reported on
+    exactly those three counts.
+    """
+    real_013 = ("The absolute gap stays between +0.097 and +0.237 through all of it; the ratio "
+                "swings by a factor of seven.")
+    problems = _span_problems(real_013, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("no sentence of the form"), problems
+    constructed = ("The absolute gap stays between +0.097 and +0.237 through all of it; the ratio "
+                   "swings between +16% and +119%, a factor of seven.")
+    problems = _span_problems(constructed, demo_output)
+    assert len(problems) == 3, f"expected highest gap, highest ratio and factor; got {problems}"
+    assert _span_problems("no such sentence here", demo_output), "a missing sentence passed"
+
+
+# The words that name what the bundled ten do. They answered the questions; one separate model
+# judged the answers. "judges" names the one, not the ten, and the 0.1.3 headline used it.
+_ANSWERER_ROLES = {"voters", "writers"}
+
+
+def _headline_role(text: str):
+    """(count word, role noun) out of a headline like '**Ten LLM voters, 1.48 …'.
+
+    The start of the line only, closed by a comma or, as in 0.1.3, a full stop: what follows
+    carries the headline's figure, which test_n_eff_figures_in_the_prose_are_the_printed_ones reads.
+    """
+    match = re.search(r"^\*\*(\w+) (?:LLM )?(\w+)[.,] ", text, re.M)
+    return match.groups() if match else None
+
+
+def test_headline_names_the_ten_by_their_role_in_the_data(readme):
+    import json
+
+    import voteworth
+
+    data = json.loads(
+        (Path(voteworth.__file__).parent / "data" / "panel_10_voters.json").read_text()
+    )
+    found = _headline_role(readme)
+    assert found, "the headline no longer has the shape '**Ten … voters, …'"
+    count, role = found
+    assert _WORD_NUMBERS.get(count.lower()) == len(data["panel"]) == len(data["writers"]), (
+        f"the headline counts {count!r}; the bundled data hold {len(data['panel'])} voters"
+    )
+    assert isinstance(data.get("judge"), str), "the data no longer name one separate judge"
+    assert role in _ANSWERER_ROLES, (
+        f"the headline calls the ten {role!r}; in the bundled data they are writers, and their "
+        f"answers were judged by {data['judge']}"
+    )
+
+
+def test_the_role_check_can_fire():
+    """Control arm: the 0.1.3 headline must be read, and its role word refused."""
+    assert _headline_role("**Ten judges. Worth 1.48 independent votes.**") == ("Ten", "judges")
+    assert "judges" not in _ANSWERER_ROLES
+    assert _headline_role("no headline here") is None
+
+
+# The prose states n_eff and the figures printed beside it: in the headline, in the first
+# finding, and in the sentences on the baselines and on the items every voter got right. The
+# figure check above sees only that each is producible, so two producible figures in each
+# other's place pass it. Each sentence is read here against the lines the demo prints. Until
+# the review of 2026-11-21 the headline also stated a baseline, which the review withdrew: the
+# comparison cannot separate differences in item difficulty from shared errors.
+_HEADLINE = re.compile(r"^\*\*\w+ (?:LLM )?\w+, (\d\.\d\d) effective votes by raw agreement\.\*\*$", re.M)
+_LEAD = re.compile(
+    r"came to (\d\.\d\d) effective votes by raw agreement, on the (\d+) items with a gold answer "
+    r"\((\d\.\d\d) on all (\d+)\)"
+)
+_BASELINES_SENTENCE = re.compile(
+    r"(\d\.\d\d) if no two wrong answers coincide, (\d\.\d\d) if wrong answers coincide as they do "
+    r"on each item"
+)
+_ALL_RIGHT_SENTENCE = re.compile(
+    r"[Aa]ll (\w+) voters got (\d+) of the (\d+) right, where such voters with these accuracies would "
+    r"get (\d\.\d\d)"
+)
+
+
+def _printed_n_eff_figures(demo_output: str) -> dict:
+    """The figures the demo prints around n_eff, as printed (strings, not rounded again)."""
+    found = {
+        "n_eff": re.search(r"effective votes \(Kish, raw agreement\):\s+(\d\.\d\d) of (\d+)", demo_output),
+        "items": re.search(r"on the (\d+) items with a gold answer; on all (\d+) items: (\d\.\d\d)", demo_output),
+        "per_item": re.search(r"wrong answers coinciding as on each item:\s+(\d\.\d\d)", demo_output),
+        "distinct": re.search(r"no two wrong answers alike:\s+(\d\.\d\d)", demo_output),
+        "all_right": re.search(r"items all (\d+) voters got right:\s+(\d+) of (\d+)", demo_output),
+        "expected": re.search(r"on equally hard items: (\d\.\d\d)", demo_output),
+    }
+    missing = [k for k, m in found.items() if not m]
+    assert not missing, f"the demo no longer prints {missing} in the shape read here:\n{demo_output}"
+    return {k: m.groups() for k, m in found.items()}
+
+
+def _n_eff_figure_problems(text: str, demo_output: str) -> list[str]:
+    printed = _printed_n_eff_figures(demo_output)
+    ne = printed["n_eff"][0]
+    answerable, total, ne_all = printed["items"]
+    flat = " ".join(text.replace("**", "").split())
+    problems = []
+    headline = _HEADLINE.search(text)
+    if not headline:
+        problems.append("the headline is not of the form '**Ten LLM voters, N effective votes by raw "
+                        "agreement.**'")
+    elif headline.group(1) != ne:
+        problems.append(f"the headline states {headline.group(1)}; the demo prints n_eff {ne}")
+    lead = _LEAD.search(flat)
+    if not lead:
+        problems.append("no first finding of the form 'came to N effective votes by raw agreement, on "
+                        "the K items with a gold answer (M on all T)'")
+    elif lead.groups() != (ne, answerable, ne_all, total):
+        problems.append(f"the first finding states {lead.groups()}; the demo prints {(ne, answerable, ne_all, total)}")
+    baselines = _BASELINES_SENTENCE.search(flat)
+    if not baselines:
+        problems.append("no sentence stating the two baselines in the shape read here")
+    elif baselines.groups() != (printed["distinct"][0], printed["per_item"][0]):
+        problems.append(f"the baselines sentence states {baselines.groups()}; the demo prints "
+                        f"{(printed['distinct'][0], printed['per_item'][0])}")
+    all_right = _ALL_RIGHT_SENTENCE.search(flat)
+    if not all_right:
+        problems.append("no sentence stating the items every voter got right in the shape read here")
+    else:
+        voters, got, of, expected = all_right.groups()
+        if (_WORD_NUMBERS.get(voters.lower()), got, of, expected) != (
+            int(printed["all_right"][0]), printed["all_right"][1], printed["all_right"][2], printed["expected"][0]
+        ):
+            problems.append(f"the all-right sentence states {all_right.groups()}; the demo prints "
+                            f"{printed['all_right']} and {printed['expected']}")
+    return problems
+
+
+def test_n_eff_figures_in_the_prose_are_the_printed_ones(readme, demo_output):
+    """The headline, the first finding and the sentences on the baselines and on the items every
+    voter got right state the figures the demo prints, each in its own place."""
+    problems = _n_eff_figure_problems(readme, demo_output)
+    assert not problems, "\n".join(problems)
+
+
+def test_the_n_eff_figure_check_can_fire(demo_output):
+    """Control arm: the 0.1.3 headline and the first 0.1.4 headline (a baseline beside n_eff,
+    withdrawn) must be refused, and constructed sentences with figures in each other's place must
+    be reported on exactly those counts."""
+    printed = _printed_n_eff_figures(demo_output)
+    ne, (answerable, total, ne_all) = printed["n_eff"][0], printed["items"]
+    per_item, distinct = printed["per_item"][0], printed["distinct"][0]
+    body = (f"Ten voters came to {ne} effective votes by raw agreement, on the {answerable} items with a "
+            f"gold answer ({ne_all} on all {total}). {distinct} if no two wrong answers coincide, "
+            f"{per_item} if wrong answers coincide as they do on each item. All ten voters got "
+            f"{printed['all_right'][1]} of the {printed['all_right'][2]} right, where such voters with "
+            f"these accuracies would get {printed['expected'][0]}.")
+    assert not _n_eff_figure_problems(f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n{body}", demo_output)
+    for old in ("**Ten judges. Worth 1.48 independent votes.**",
+                "**Ten LLM voters. Worth 1.48 effective votes; independent voters as accurate would be worth 2.03.**"):
+        problems = _n_eff_figure_problems(f"{old}\n\n{body}", demo_output)
+        assert len(problems) == 1 and problems[0].startswith("the headline is not"), problems
+    headline = f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n"
+    swapped = body.replace(f"{distinct} if no", f"{per_item} if no").replace(f"{per_item} if wrong", f"{distinct} if wrong")
+    problems = _n_eff_figure_problems(headline + swapped, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the baselines sentence"), problems
+    # the first finding and the all-right sentence, each with one figure planted wrong
+    wrong_lead = body.replace(f"({ne_all} on all {total})", f"({ne} on all {total})")
+    problems = _n_eff_figure_problems(headline + wrong_lead, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the first finding"), problems
+    wrong_all_right = body.replace(f"would get {printed['expected'][0]}", "would get 9.99")
+    problems = _n_eff_figure_problems(headline + wrong_all_right, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the all-right sentence"), problems
+
+
+# The judge is part of the data's description, not of the votes: one model judged the ten
+# voters' answers, and it is the model of three of them (review of 2026-11-21).
+_JUDGE_SENTENCE = re.compile(r"The judge is (\S+), the model of (\w+) of the (\w+) voters\.")
+
+
+def _judge_problems(text: str, data: dict) -> list[str]:
+    match = _JUDGE_SENTENCE.search(" ".join(text.split()))
+    if not match:
+        return ["no sentence of the form 'The judge is M, the model of K of the N voters.'"]
+    judge, k, total = match.groups()
+    same = sum(voter["model"] == data["judge"] for voter in data["panel"])
+    expected = [("judge", judge, data["judge"]), ("voters with the judge's model", _WORD_NUMBERS.get(k.lower()), same),
+                ("voters", _WORD_NUMBERS.get(total.lower()), len(data["panel"]))]
+    return [f"{what}: text {said}, data {got}" for what, said, got in expected if said != got]
+
+
+def _bundled_data() -> dict:
+    import json
+
+    import voteworth
+
+    return json.loads((Path(voteworth.__file__).parent / "data" / "panel_10_voters.json").read_text())
+
+
+def test_the_judge_sentence_matches_the_data(readme):
+    problems = _judge_problems(readme, _bundled_data())
+    assert not problems, "\n".join(problems)
+
+
+def test_the_judge_check_can_fire():
+    """Control arm, constructed: another judge and another count must both be reported."""
+    planted = "The judge is claude-haiku-4-5, the model of two of the ten voters."
+    assert len(_judge_problems(planted, _bundled_data())) == 2
+    assert _judge_problems("no such sentence", _bundled_data())
+
+
+def _python_blocks(text: str) -> list[str]:
+    return re.findall(r"```python\n(.*?)```", text, re.S)
+
+
+def _run_block(code: str) -> int:
+    """Run one README code block statement by statement; return how many shown results it compared.
+
+    A bare expression followed by a comment line that holds a literal list ('# [0.333, …]') is
+    a shown result: it is compared with the value, to the decimals the comment shows.
+    """
+    import ast
+
+    namespace: dict = {}
+    lines = code.splitlines()
+    compared = 0
+    for node in ast.parse(code).body:
+        if isinstance(node, ast.Expr):
+            value = eval(compile(ast.Expression(node.value), "<README>", "eval"), namespace)
+            after = lines[node.end_lineno] if node.end_lineno < len(lines) else ""
+            literal = re.match(r"\s*#\s*(\[[^\]]*\])", after)
+            if literal:
+                shown = ast.literal_eval(literal.group(1))
+                places = max(
+                    (len(repr(x).split(".")[1]) for x in shown if isinstance(x, float)), default=0
+                )
+                got = [round(x, places) for x in value]
+                assert got == shown, f"the README shows {shown}, the code returns {got}"
+                compared += 1
+        else:
+            exec(compile(ast.Module(body=[node], type_ignores=[]), "<README>", "exec"), namespace)
+    return compared
+
+
+def test_readme_code_blocks_run_as_written(readme):
+    """Every Python example in the README runs as printed, and its shown results hold."""
+    blocks = _python_blocks(readme)
+    assert len(blocks) >= 2, "the README no longer carries the usage examples this test runs"
+    compared = sum(_run_block(block) for block in blocks)
+    assert compared >= 1, "no shown result in the examples was compared; has the README changed shape?"
+
+
+def test_the_code_block_runner_can_fire():
+    """Control arm: the 0.1.3 example with its '...' placeholder must fail, and so must a wrong shown result."""
+    with pytest.raises(TypeError):
+        _run_block(
+            "from voteworth import effective_votes\n"
+            "history = [[0, 0, 1, 0], [1, 1, 0, 2], ...]\n"
+            "effective_votes(history, n_voters=4)\n"
+        )
+    with pytest.raises(AssertionError):
+        _run_block(
+            "from voteworth import structural_weights\n"
+            "structural_weights(['a', 'a', 'b'])\n"
+            "# [0.4, 0.4, 1.0]\n"
+        )
