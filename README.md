@@ -1,6 +1,6 @@
 # voteworth
 
-**Ten judges. Worth 1.48 independent votes.**
+**Ten LLM voters. Worth 1.48 independent votes.**
 
 Your LLM panel agrees — that is not the same as it being right.
 
@@ -43,9 +43,9 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
 
   Third source — averaging. The headline above means over voter PAIRS (0.428 / 0.185);
   pooling over events gives 0.438 / 0.200, because pairs contribute unequally.
-  → The ABSOLUTE gap is stable across all of this; the ratio is not. Published
-    absolute gaps sit in the same band. Match base, definition and averaging
-    before comparing your panel to anyone else's number.
+  → The ABSOLUTE gap moves less than the ratio across all of this. Published
+    studies measure related but different quantities: match base, definition
+    and averaging before comparing your panel to anyone else's number.
 
   effective votes (Kish):     1.48 of 10
   largest provenance share:   30%
@@ -73,9 +73,10 @@ Four things worth sitting with:
 **Ten voters were worth 1.48.** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, counts
 how many independent voters you actually have. The ordering carries; the second decimal does
 not: mean pairwise agreement is only a coarse stand-in for the intraclass correlation the formula
-expects. A published nine-judge panel spanning seven
-model families measures about 2.2. Adding voters from the same pool buys far less than the
-count suggests.
+expects. A nine-judge panel spanning seven model families is reported at about 2.2 (Kohli,
+preprint), but from the correlation of error indicators against gold labels rather than from raw
+agreement, so the two figures are not on one scale. Adding voters from the same pool buys far
+less than the count suggests.
 
 **The plain majority scored 13.8 points below the panel's best single member**, and reported
 62.1% confidence while being right 44.8% of the time. Agreement was measuring redundancy, not
@@ -95,10 +96,12 @@ Three separate things vary here, and comparisons across studies routinely confus
 **base** (which items count), the **definition** (what "agreeing" means on them) and the
 **averaging** (the headline 42.8 / 18.5 is a mean over voter *pairs*; pooling over events gives
 0.438 / 0.200, because pairs contribute unequally). The absolute gap stays between +0.097 and
-+0.237 through all of it; the ratio swings by a factor of seven. Published measurements sit in
-the same absolute band (+0.05 to +0.11). **The difference travels between studies; the ratio
-does not.** Match all three choices before comparing your panel to a published number — the
-demo prints the whole table so you can.
++0.243 through all of it; the ratio swings between +16% and +131%, a factor of eight. Published
+studies report related but different quantities: Kohli a same-family excess of +0.047 to +0.109
+in the correlation of error indicators, Kim et al. a same-company coefficient of +0.022 to
++0.066 in agreement when both are wrong. Neither is this package's co-deviation rate, so neither
+can be set beside the table above as it stands. Match all three choices before comparing your
+panel to a published number; the demo prints the whole table so you can.
 
 **On a single-model panel the provenance correction does nothing at all** — the demo prints
 `INERT`. Not "a little": every voter carries the same weight, normalisation makes it uniform,
@@ -112,7 +115,7 @@ from voteworth import (
     aggregate, agreement_confidence, pairwise_coerror,
 )
 
-history = [[0, 0, 1, 0], [1, 1, 0, 2], ...]   # past items, one cluster id per voter (-1 = abstained)
+history = [[0, 0, 1, 0], [1, 1, 0, 2], [0, 0, 2, 2], [1, 1, 1, -1]]   # past items, one cluster id per voter (-1 = abstained)
 sources = ["gpt-4o-mini", "gpt-4o-mini", "claude-haiku-4-5", "mistral-small-latest"]
 
 effective_votes(history, n_voters=4)   # how many independent voters you really have
@@ -180,8 +183,9 @@ weights is the signature.** The demo prints both and warns above 50%.
   weight moves it to 14.9. Read the −7.2 pp above as a direction, not a size. **Decision
   repair and calibration repair are different things**, and this package only does the first.
 - **Diversity is necessary, not sufficient.** Cross-model pairs in the demo that both break from
-  the majority still pick the same answer 18.5% of the time, and a nine-judge panel of seven families measures ~2.2
-  effective votes. Measure your panel; do not assume it from the roster.
+  the majority still pick the same answer 18.5% of the time, and a nine-judge panel of seven families is
+  reported at about 2.2 effective votes on a different measure (Kohli, preprint). Measure your panel; do not
+  assume it from the roster.
 
 ## Is the test suite real?
 
@@ -197,18 +201,21 @@ float equality where only equality-to-rounding holds, and the withdrawn-figure g
 found matching its own source text.
 
 ```bash
-pytest          # 157 tests, a few seconds, including the mutation gate
+pytest          # 169 tests, a few seconds, including the mutation gate
 ```
 
 ## Related work
 
-The phenomenon is established and the size of it is contested — the package takes no side.
+The phenomenon is established and the size of it is contested — the package takes no side. The
+statements below about other people's work were checked against their sources on 21 November 2026.
 
 **Same-model error correlation.** Kim, Garg, Peng & Garg, *Correlated Errors in Large Language
-Models* (ICML 2025, [arXiv:2506.07962](https://arxiv.org/abs/2506.07962)) measure exactly this
-package's primitive across 350+ models and find a significant same-developer and
-same-architecture effect — **and** that cross-provider pairs already agree 0.42–0.60 when both
-are wrong. Kohli, *Nine Judges, Two Effective Votes* ([arXiv:2605.29800](https://arxiv.org/abs/2605.29800))
+Models* (ICML 2025, [arXiv:2506.07962](https://arxiv.org/abs/2506.07962)) measure, across 350+
+models, how often two models give the same wrong answer when both are wrong: a labelled relative
+of this package's label-free primitive. They find a significant same-company and
+same-architecture effect, **and** that model pairs agree on average 0.42–0.60 of the time when
+both are wrong (0.423 on the HuggingFace leaderboard, 0.6 on Helm, mean over all pairs). Kohli,
+*Nine Judges, Two Effective Votes* (preprint, [arXiv:2605.29800](https://arxiv.org/abs/2605.29800))
 finds the family effect small and the most correlated pairs *cross*-family. Goel et al.,
 *Great Models Think Alike* ([arXiv:2502.04313](https://arxiv.org/abs/2502.04313)) propose CAPA,
 a chance-corrected similarity, and report that judges favour models similar to themselves.
@@ -270,8 +277,9 @@ bot challenge and the sweep fell back to looking up names instead of description
 "no tool does X" here, including this one, as *not found by a search whose limits are on
 record*.
 
-**Neighbouring tools.** `judgepanel` fits Dawid–Skene to judge panels and reports κ, but
-assumes conditional independence. *CARE* corrects for latent confounders with a fitted
+**Neighbouring tools.** `judgepanel` fits Dawid–Skene to judge panels and reports κ. Dawid–Skene
+assumes conditional independence; since version 0.2.0 (November 2026) the package also tests that
+assumption. *CARE* corrects for latent confounders with a fitted
 decomposition. Inspect AI's `multi_scorer` offers mode/majority reducers and a Krippendorff
 statistic, unweighted. This package sits in a different spot: a closed-form weight from shared
 deviations, no labels, no latent model and no classifier, one dependency — and its own failure
@@ -293,7 +301,7 @@ without saying which artefact they live in.
 | | how |
 |---|---|
 | every number in this README | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run |
-| every behavioural claim | `pytest` — 157 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
+| every behavioural claim | `pytest` — 169 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
 | that the tests can fail | `pytest tests/test_mutation.py` breaks the mechanism three ways and requires each to be caught |
 | that the bundled dataset is unaltered | its SHA-256 is in `NOTICE`, together with the one command that reaches a matching hash on Zenodo — the record page itself lists an MD5, under a different filename |
 

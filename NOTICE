@@ -5,6 +5,7 @@ This product includes software developed by Alexander Bering.
 
 The bundled vote matrix at
 src/voteworth/data/panel_10_voters.json
+(voteworth/data/panel_10_voters.json in an installed wheel)
 is published separately under CC BY 4.0 as
 
   Agreement-Confidence Reanalysis: Vote Matrix and Screen

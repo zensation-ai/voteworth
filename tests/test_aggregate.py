@@ -195,30 +195,39 @@ def test_dominant_bloc_is_invisible_to_the_weights():
     about that draw. Over seeds 0-19 the gap to the best single voter runs 0.132 to 0.218
     (median 0.172), so the assertion below is set under the observed minimum.
     """
-    n_bloc, n_indep = 6, 4
-    n = n_bloc + n_indep
     truth_gaps = []
 
     for seed in range(20):
-        history = _bloc_panel(n_bloc, n_indep, seed=seed)
-        w = learn_independence_weights(history, n)
-
-        bloc_w = sum(w[:n_bloc]) / n_bloc
-        indep_w = sum(w[n_bloc:]) / n_indep
+        run = boundary_run(seed)
         # The failure, asserted: the correlated bloc keeps FULL weight...
-        assert bloc_w == 1.0, f"seed {seed}: bloc weight {bloc_w}"
+        assert run["bloc_w"] == 1.0, f"seed {seed}: bloc weight {run['bloc_w']}"
         # ...while the independent voters are the ones penalised.
-        assert indep_w < bloc_w, f"seed {seed}"
+        assert run["indep_w"] < run["bloc_w"], f"seed {seed}"
 
-        truth = [0] * len(history)
-        acc_naive = sum(aggregate(r, naive_weights(n)) == t for r, t in zip(history, truth)) / len(history)
-        acc_w = sum(aggregate(r, w) == t for r, t in zip(history, truth)) / len(history)
-        best = max(sum(r[i] == t for r, t in zip(history, truth)) / len(history) for i in range(n))
-
-        assert abs(acc_naive - acc_w) < 1e-12, f"seed {seed}: weighting is not inert"
-        truth_gaps.append(best - acc_w)
+        assert abs(run["acc_naive"] - run["acc_w"]) < 1e-12, f"seed {seed}: weighting is not inert"
+        truth_gaps.append(run["best"] - run["acc_w"])
 
     assert min(truth_gaps) > 0.11, f"gaps: min={min(truth_gaps):.3f}"
+
+
+def boundary_run(seed, n_bloc=6, n_indep=4):
+    """One draw of the boundary experiment above: weights, both accuracies, the best voter.
+
+    Shared with tests/test_docstring_claims.py, which binds the figure the docstring of
+    `bloc_share` quotes from this experiment. One computation, so that the docstring check and
+    the boundary test cannot drift apart.
+    """
+    n = n_bloc + n_indep
+    history = _bloc_panel(n_bloc, n_indep, seed=seed)
+    w = learn_independence_weights(history, n)
+    truth = [0] * len(history)
+    return {
+        "bloc_w": sum(w[:n_bloc]) / n_bloc,
+        "indep_w": sum(w[n_bloc:]) / n_indep,
+        "acc_naive": sum(aggregate(r, naive_weights(n)) == t for r, t in zip(history, truth)) / len(history),
+        "acc_w": sum(aggregate(r, w) == t for r, t in zip(history, truth)) / len(history),
+        "best": max(sum(r[i] == t for r, t in zip(history, truth)) / len(history) for i in range(n)),
+    }
 
 
 def test_bloc_share_flags_the_regime():

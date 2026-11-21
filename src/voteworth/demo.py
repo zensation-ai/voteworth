@@ -91,8 +91,8 @@ def main() -> None:
 
     # The same comparison under three different choices. Nothing about the votes changes; only
     # which items count, what "agreeing" means on them, and how pairs are averaged. The ratio
-    # swings by a factor of seven while the absolute gap barely moves — which is why a ratio
-    # quoted without its base cannot be compared to anyone else's.
+    # swings by a factor of eight while the absolute gap moves by a factor of 2.5 — which is
+    # why a ratio quoted without its base cannot be compared to anyone else's.
     def _gap(pred):
         s_hit = s_tot = c_hit = c_tot = 0
         for t in answerable:
@@ -159,9 +159,9 @@ def main() -> None:
               f"({same_r:.3f} / {cross_r:.3f});")
         print(f"  pooling over events gives {sr_p:.3f} / {cr_p:.3f}, because pairs contribute "
               f"unequally.")
-    print("  → The ABSOLUTE gap is stable across all of this; the ratio is not. Published")
-    print("    absolute gaps sit in the same band. Match base, definition and averaging")
-    print("    before comparing your panel to anyone else's number.")
+    print("  → The ABSOLUTE gap moves less than the ratio across all of this. Published")
+    print("    studies measure related but different quantities: match base, definition")
+    print("    and averaging before comparing your panel to anyone else's number.")
 
     ne_raw = effective_votes([votes[t] for t in answerable], n)
     share = bloc_share([p["model"] for p in panel])

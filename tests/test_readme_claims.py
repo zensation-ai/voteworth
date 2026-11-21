@@ -68,6 +68,7 @@ _NOT_A_MEASUREMENT = re.compile(
     r"|\bclaude-\S+|\bmistral-\S+"        # ditto
     r"|\bApache-[\d.]+|CC BY [\d.]+"       # licence versions
     r"|\bPython [\d.]+|>=[\d.]+"           # version constraints
+    r"|\bv?\d+\.\d+\.\d+\b"                # release numbers of other packages: 0.2.0
 )
 
 
@@ -114,12 +115,20 @@ def test_readme_output_block_matches_a_real_run(readme, demo_output):
 # vacuously (drop the prose check) or force us to delete honest citations — and the second
 # failure mode is worse than the first.
 FOREIGN_FIGURES = {
-    # other people's measurements
-    "2.2": "Kohli 2026 (arXiv:2605.29800): nine judges over seven families, effective votes",
-    "0.05": "lower end of published absolute same-family gaps, Kohli 2026",
-    "0.11": "upper end of that band, measured on this panel's raw-agreement base",
-    "0.42": "Kim et al. ICML 2025 (arXiv:2506.07962): cross-provider agreement when both wrong",
-    "0.6": "Kim et al. 2025: upper end of that cross-provider range (quoted as 0.60)",
+    # other people's measurements. Read at source on 2026-11-21; the README carries that date.
+    # Two entries here were wrong until then: a "band" of +0.05 to +0.11 that one of its two
+    # sources did not support, and a range attributed to cross-provider pairs that the source
+    # reports as the mean over ALL pairs. A provenance note is a claim too.
+    "2.2": "Kohli 2026 (arXiv:2605.29800, preprint): nine judges over seven families, effective "
+           "votes from the phi of error indicators against gold, not from raw agreement",
+    "0.047": "Kohli 2026, section 5.3: same-family minus cross-family phi of error indicators, MNLI",
+    "0.109": "Kohli 2026, section 5.3: the same difference on RewardBench",
+    "0.022": "Kim et al. ICML 2025 (arXiv:2506.07962), Table 1: same-company coefficient, Helm",
+    "0.066": "Kim et al. 2025, Table 1: same-company coefficient, HuggingFace leaderboard",
+    "0.42": "Kim et al. 2025, section 3.2: mean agreement over ALL model pairs when both are "
+            "wrong, HuggingFace leaderboard (0.423), quoted as the lower end of 0.42-0.60",
+    "0.423": "Kim et al. 2025, section 3.2: the same mean, HuggingFace leaderboard, unrounded",
+    "0.6": "Kim et al. 2025, section 3.2: the same mean over all pairs on Helm (also as 0.60)",
     "0.5": "the weight a voter locked to one partner receives; asserted in test_aggregate.py",
     # The synthetic boundary experiment. 'Reproduced by tests/test_aggregate.py' used to
     # mean the file asserted the series FALLS; the values themselves were unchecked, and
@@ -139,6 +148,8 @@ FOREIGN_FIGURES = {
     # arithmetic on printed figures, not printed themselves
     "13.8": "58.6 minus 44.8, derived from the run rather than printed by it",
     "2.3": "42.8 divided by 18.5, derived from the run",
+    "0.243": "0.428 minus 0.185, the pair-mean gap, derived from the run; the span it closes "
+             "is checked in test_gap_span_and_ratio_factor_match_a_live_run",
 }
 
 
@@ -497,3 +508,179 @@ def test_the_packaging_rule_check_can_fire():
     assert not [f for f in owned if f.startswith("notes") or f.endswith("demo.txt")], (
         "the scope reaches outside the package's own directories"
     )
+
+
+# ── spans, factors, roles and code: what a figure-by-figure check cannot see ────
+#
+# Everything above asks whether each figure is producible. A check before the 0.1.3 upload
+# (2026-11-21) found statements that passed it and were still wrong: a span that left out one
+# of the variants it claimed to cover, a factor read off three of four rows, a headline that
+# gave the ten voters the role of the one judge, and a code example that raised as written.
+# Each guard below is red on the 0.1.3 text; its control arm plants that text and must fire.
+
+_WORD_NUMBERS = {
+    "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+    "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+
+_SPAN_SENTENCE = re.compile(
+    r"The absolute gap stays between \+(\d\.\d{3}) and \+(\d\.\d{3}) through all of it; "
+    r"the ratio swings between \+(\d+)% and \+(\d+)%, a factor of (\w+)\."
+)
+
+
+def _printed_variants(demo_output: str) -> list[tuple[float, int]]:
+    """(gap, ratio in percent) for every variant the demo prints.
+
+    The three pooled rows are read as printed. The pair mean is printed only as its two rates,
+    so its gap and ratio are formed from those printed rates: the arithmetic a reader of the
+    output would do, and the reason "through all of it" has to include it.
+    """
+    rows = re.findall(
+        r"^  \S.*?\s(\d\.\d{3})\s+(\d\.\d{3})\s+\+(\d\.\d{3})\s+\+(\d+)%\s*$", demo_output, re.M
+    )
+    pair = re.search(r"voter PAIRS \((\d\.\d{3}) / (\d\.\d{3})\)", demo_output)
+    assert len(rows) == 3 and pair, (
+        f"the demo no longer prints the three rows and the pair mean this check reads:\n{demo_output}"
+    )
+    variants = [(float(gap), int(ratio)) for _, _, gap, ratio in rows]
+    same, cross = float(pair.group(1)), float(pair.group(2))
+    variants.append((round(same - cross, 3), round(100 * (same - cross) / cross)))
+    return variants
+
+
+def _span_problems(text: str, demo_output: str) -> list[str]:
+    """What is wrong with the span sentence in `text`, measured against a live run."""
+    match = _SPAN_SENTENCE.search(" ".join(text.split()))
+    if not match:
+        return ["no sentence of the form 'The absolute gap stays between +X and +Y through all "
+                "of it; the ratio swings between +A% and +B%, a factor of N.'"]
+    variants = _printed_variants(demo_output)
+    gaps = [gap for gap, _ in variants]
+    ratios = [ratio for _, ratio in variants]
+    factor = round(max(ratios) / min(ratios))
+    problems = []
+    if float(match.group(1)) != min(gaps):
+        problems.append(f"lowest gap: text +{match.group(1)}, run +{min(gaps):.3f}")
+    if float(match.group(2)) != max(gaps):
+        problems.append(f"highest gap: text +{match.group(2)}, run +{max(gaps):.3f}")
+    if int(match.group(3)) != min(ratios):
+        problems.append(f"lowest ratio: text +{match.group(3)}%, run +{min(ratios)}%")
+    if int(match.group(4)) != max(ratios):
+        problems.append(f"highest ratio: text +{match.group(4)}%, run +{max(ratios)}%")
+    if _WORD_NUMBERS.get(match.group(5).lower()) != factor:
+        problems.append(f"factor: text {match.group(5)!r}, run {factor}")
+    return problems
+
+
+def test_gap_span_and_ratio_factor_match_a_live_run(readme, demo_output):
+    """'Through all of it' means all four variants the demo prints, the pair mean included."""
+    problems = _span_problems(readme, demo_output)
+    assert not problems, "the README's span sentence does not match a live run:\n" + "\n".join(problems)
+
+
+def test_the_span_check_can_fire(demo_output):
+    """Control arm: the 0.1.3 span (three rows only) must be reported on all three counts."""
+    old = ("The absolute gap stays between +0.097 and +0.237 through all of it; the ratio swings "
+           "between +16% and +119%, a factor of seven.")
+    problems = _span_problems(old, demo_output)
+    assert len(problems) == 3, f"expected highest gap, highest ratio and factor; got {problems}"
+    assert _span_problems("no such sentence here", demo_output), "a missing sentence passed"
+
+
+# The words that name what the bundled ten do. They answered the questions; one separate model
+# judged the answers. "judges" names the one, not the ten, and the 0.1.3 headline used it.
+_ANSWERER_ROLES = {"voters", "writers"}
+
+
+def _headline_role(text: str):
+    """(count word, role noun) out of a headline like '**Ten LLM voters. Worth 1.48 …**'."""
+    match = re.search(
+        r"^\*\*(\w+) (?:LLM )?(\w+)\. Worth [\d.]+ independent votes\.\*\*$", text, re.M
+    )
+    return match.groups() if match else None
+
+
+def test_headline_names_the_ten_by_their_role_in_the_data(readme):
+    import json
+
+    import voteworth
+
+    data = json.loads(
+        (Path(voteworth.__file__).parent / "data" / "panel_10_voters.json").read_text()
+    )
+    found = _headline_role(readme)
+    assert found, "the headline no longer has the shape '**Ten … Worth N independent votes.**'"
+    count, role = found
+    assert _WORD_NUMBERS.get(count.lower()) == len(data["panel"]) == len(data["writers"]), (
+        f"the headline counts {count!r}; the bundled data hold {len(data['panel'])} voters"
+    )
+    assert isinstance(data.get("judge"), str), "the data no longer name one separate judge"
+    assert role in _ANSWERER_ROLES, (
+        f"the headline calls the ten {role!r}; in the bundled data they are writers, and their "
+        f"answers were judged by {data['judge']}"
+    )
+
+
+def test_the_role_check_can_fire():
+    """Control arm: the 0.1.3 headline must be read, and its role word refused."""
+    assert _headline_role("**Ten judges. Worth 1.48 independent votes.**") == ("Ten", "judges")
+    assert "judges" not in _ANSWERER_ROLES
+    assert _headline_role("no headline here") is None
+
+
+def _python_blocks(text: str) -> list[str]:
+    return re.findall(r"```python\n(.*?)```", text, re.S)
+
+
+def _run_block(code: str) -> int:
+    """Run one README code block statement by statement; return how many shown results it compared.
+
+    A bare expression followed by a comment line that holds a literal list ('# [0.333, …]') is
+    a shown result: it is compared with the value, to the decimals the comment shows.
+    """
+    import ast
+
+    namespace: dict = {}
+    lines = code.splitlines()
+    compared = 0
+    for node in ast.parse(code).body:
+        if isinstance(node, ast.Expr):
+            value = eval(compile(ast.Expression(node.value), "<README>", "eval"), namespace)
+            after = lines[node.end_lineno] if node.end_lineno < len(lines) else ""
+            literal = re.match(r"\s*#\s*(\[[^\]]*\])", after)
+            if literal:
+                shown = ast.literal_eval(literal.group(1))
+                places = max(
+                    (len(repr(x).split(".")[1]) for x in shown if isinstance(x, float)), default=0
+                )
+                got = [round(x, places) for x in value]
+                assert got == shown, f"the README shows {shown}, the code returns {got}"
+                compared += 1
+        else:
+            exec(compile(ast.Module(body=[node], type_ignores=[]), "<README>", "exec"), namespace)
+    return compared
+
+
+def test_readme_code_blocks_run_as_written(readme):
+    """Every Python example in the README runs as printed, and its shown results hold."""
+    blocks = _python_blocks(readme)
+    assert len(blocks) >= 2, "the README no longer carries the usage examples this test runs"
+    compared = sum(_run_block(block) for block in blocks)
+    assert compared >= 1, "no shown result in the examples was compared; has the README changed shape?"
+
+
+def test_the_code_block_runner_can_fire():
+    """Control arm: the 0.1.3 example with its '...' placeholder must fail, and so must a wrong shown result."""
+    with pytest.raises(TypeError):
+        _run_block(
+            "from voteworth import effective_votes\n"
+            "history = [[0, 0, 1, 0], [1, 1, 0, 2], ...]\n"
+            "effective_votes(history, n_voters=4)\n"
+        )
+    with pytest.raises(AssertionError):
+        _run_block(
+            "from voteworth import structural_weights\n"
+            "structural_weights(['a', 'a', 'b'])\n"
+            "# [0.4, 0.4, 1.0]\n"
+        )

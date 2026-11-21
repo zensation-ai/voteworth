@@ -217,8 +217,9 @@ def bloc_share(sources) -> float:
     Above 0.5 one group can carry the plurality on its own, and the shared-error statistic this
     package relies on stops seeing it: the bloc never deviates from a plurality it constitutes,
     so it accrues no penalty, while the independent minority co-deviates and is down-weighted.
-    Measured on a synthetic 10-voter panel with a 6-voter bloc, the weighted vote equals the
-    naive one and lands 20 points below the best single voter.
+    Measured on a synthetic 10-voter panel with a 6-voter bloc over twenty seeds, the weighted
+    vote equals the naive one in every run and lands a median 17 points below the best single
+    voter (test_dominant_bloc_is_invisible_to_the_weights).
 
     Check this before trusting the weights. There is no correction for it in this package.
     """
