@@ -33,6 +33,17 @@ jobs:
           echo "tag=$tag pyproject=$meta __version__=$code CITATION.cff=$cff"
           test "$tag" = "$meta" && test "$meta" = "$code" && test "$code" = "$cff"
 
+      # date-released stands as a placeholder in review and is set on the day of the release.
+      # published_at is UTC: a release published between 00:00 and 01:00 CET carries the day
+      # before and stops here, which errs on the safe side.
+      - name: CITATION.cff date-released must be the day the release was published
+        env:
+          PUBLISHED_AT: ${{ github.event.release.published_at }}
+        run: |
+          released=$(sed -n 's/^date-released: //p' CITATION.cff)
+          echo "date-released=$released published_at=$PUBLISHED_AT"
+          test "$released" = "${PUBLISHED_AT%%T*}"
+
       - name: Build and check the distribution
         run: |
           python -m pip install --upgrade pip build twine

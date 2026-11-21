@@ -1,6 +1,6 @@
 # voteworth
 
-**Ten LLM voters. Worth 1.48 effective votes; independent voters as accurate would be worth 2.03.**
+**Ten LLM voters, 1.48 effective votes by raw agreement.**
 
 Your LLM panel agrees — that is not the same as it being right.
 
@@ -9,8 +9,10 @@ majority, and the level of agreement gets reported as confidence. Both steps ass
 are independent. They often are not — and when they are not, a correlated bloc can win the
 vote while being wrong, with its agreement read as certainty.
 
-This package measures that dependence three ways, corrects the vote where it can, and tells
-you plainly where it cannot.
+This package reports three quantities, none of which needs labels and none of which isolates
+that dependence on its own: how often two voters that both break from the plurality pick the
+same answer, Kish's effective number of votes by raw agreement, and the share of the panel's
+largest source. It corrects the vote where it can, and tells you plainly where it cannot.
 
 ```bash
 pip install voteworth
@@ -31,7 +33,7 @@ pytest                        # the suite, including the mutation gate
 On the bundled vote matrix — ten real LLM voters over 80 items, no network, no API key:
 
 ```
-=== 1. When two voters both break from the majority, do they pick the same answer? ===
+=== 1. When two voters both break from the plurality, do they pick the same answer? ===
   same model       42.8%   (8 pairs)
   different model  18.5%   (37 pairs)
 
@@ -48,7 +50,14 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
     and averaging before comparing your panel to anyone else's number.
 
   effective votes (Kish, raw agreement):   1.48 of 10
-  independent voters, same accuracies:     2.03 (2.35 if no two wrong answers coincide)
+    on the 57 items with a gold answer; on all 80 items: 1.49
+  independent voters with these accuracies, if every item were equally hard:
+    wrong answers coinciding as on each item:   2.03
+    no two wrong answers alike:                 2.35
+  items all 10 voters got right:           20 of 57
+    independent voters with these accuracies on equally hard items: 0.34
+  → Raw agreement rises with accuracy once voters are right more often than not, with
+    differences in item difficulty and with shared errors; n_eff alone cannot tell them apart.
   largest provenance share:                30%
 
 === 2. Does the panel beat its own best member? (held-out, n=29) ===
@@ -64,33 +73,42 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
   3x gpt-4.1-mini           acc  51.7% →  51.7%   INERT — weighting changed nothing
   → Provenance weighting needs voters from different sources. A same-model panel
     cannot be repaired by provenance weighting; it has to be made diverse.
-  → Diversity is necessary, not sufficient: when cross-model pairs both break from
-    the majority, they still pick the same answer 18.5% of the time, and this
-    panel of four families is worth 1.5 effective votes out of 10, against 2.0
-    for independent voters as accurate.
 ```
 
 Four things worth sitting with:
 
-**Ten voters were worth 1.48 effective votes; independent voters as accurate would be worth
-2.03.** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, here takes raw pairwise agreement
-as r̄. Raw agreement rises with accuracy as well as with dependence: ten independent voters that
-are each right 80% of the time also score 1.48, with every learned weight at 1.0. n_eff
-therefore says something about dependence only next to what independent voters with the same
-accuracies would score. The demo computes that from the gold labels: 2.03 when wrong answers
-fall as they do on each item, 2.35 when no two wrong answers coincide. Without labels n_eff
-cannot tell a redundant panel from an accurate one, and the order of panels with different
-accuracy does not carry. A nine-judge panel spanning seven model families is reported at about
+**Ten voters came to 1.48 effective votes by raw agreement, on the 57 items with a gold answer
+(1.49 on all 80).** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, here takes raw
+pairwise agreement as r̄, and raw agreement rises with differences in difficulty between items,
+with shared errors, and with accuracy once voters are right more often than not. Ten independent
+voters that are each right 80% of the time and never give the same wrong answer also score 1.48,
+with every learned weight at 1.0. With two answer options, where every wrong answer is the same
+one, they score 1.40, and every weight drops to 0.10.
+
+The demo prints what independent voters with this panel's accuracies would score if every item
+were equally hard: 2.35 if no two wrong answers coincide, 2.03 if wrong answers coincide as they
+do on each item. The second figure counts an item without wrong answers as no coincidence and an
+item on which only one voter is wrong as full coincidence. Nor do these votes fit independent
+voters on equally hard items: all ten voters got 20 of the 57 right, where such voters with these
+accuracies would get 0.34. Unequal items and voters that are right together both produce that
+excess, and the votes cannot say which. Item by item, a model fitted to these same votes accounts
+for all of the panel's mean agreement, as it would for any panel without abstentions, so n_eff
+alone cannot tell differences in item difficulty from shared errors. A lower n_eff does not mark
+the more dependent panel. A nine-judge panel spanning seven model families is reported at about
 2.2 (Kohli, preprint), but from the correlation of error indicators against gold labels rather
-than from raw agreement, so the two figures are not on one scale. Voters from the same model
-share their wrong answers (42.8% against 18.5% for pairs that both break from the majority), so
-adding them buys less than the count suggests.
+than from raw agreement, so the two figures are not on one scale.
+
+Voters from the same model that both break from the plurality pick the same answer more often
+than voters from different models (42.8% against 18.5%, means over voter pairs). The items do not
+explain that gap: shuffling the votes within each item keeps every item's answers and drops who
+gave them, and fewer than one in a thousand such shuffles put same-model pairs as far ahead, in
+that rate (+0.243) or in raw agreement (+0.097). The shuffle needs no labels. So adding voters
+from the same model buys less than the count suggests.
 
 **The plain majority scored 13.8 points below the panel's best single member**, and reported
-62.1% confidence while being right 44.8% of the time. Agreement was measuring redundancy, not
-correctness.
+62.1% confidence while being right 44.8% of the time. Agreement was not measuring correctness.
 
-**Read the absolute gap, not the ratio.** Same-model pairs that both break from the majority
+**Read the absolute gap, not the ratio.** Same-model pairs that both break from the plurality
 pick the same answer 2.3× as often as cross-model pairs — and that ratio is mostly an artefact of how it was
 measured. On this one panel, without changing a single vote, three choices move it:
 
@@ -126,9 +144,9 @@ from voteworth import (
 history = [[0, 0, 1, 0], [1, 1, 0, 2], [0, 0, 2, 2], [1, 1, 1, -1]]   # past items, one cluster id per voter (-1 = abstained)
 sources = ["gpt-4o-mini", "gpt-4o-mini", "claude-haiku-4-5", "mistral-small-latest"]
 
-effective_votes(history, n_voters=4)   # Kish's n_eff from raw agreement, which rises with accuracy too
+effective_votes(history, n_voters=4)   # Kish's n_eff by raw agreement, not a count of independent voters
 bloc_share(sources)                    # ⚠ check this FIRST — see the boundary below
-pairwise_coerror(history, n_voters=4)  # which pairs share their errors (NaN = never co-deviated)
+pairwise_coerror(history, n_voters=4)  # how often two voters give the same answer when both deviate (NaN = never both)
 
 weights = learn_independence_weights(history, n_voters=4)
 winner  = aggregate([0, 0, 1, 2], weights)
@@ -151,10 +169,11 @@ dates).
 ## How the weight is computed
 
 For every pair of voters, look only at items where **both deviated** from the panel's
-plurality, and count how often they deviated **with the same value**. Then
+plurality, and take the share of those items on which they deviated **with the same value**.
+Then
 
 ```
-weight[i] = 1 / (1 + Σ_{j≠i} sharedError[i][j])
+weight[i] = 1 / (1 + Σ_{j≠i} sameAnswer[i][j])
 ```
 
 A voter that never co-deviates keeps weight 1.0; one locked to a single partner drops to 0.5.
@@ -162,7 +181,7 @@ An empty history yields uniform weights — nothing observed, nothing claimed.
 
 ## ⚠️ The boundary: when one bloc holds the plurality, this method is blind
 
-**Check `bloc_share` before you trust the weights.** The shared-error rate is measured among
+**Check `bloc_share` before you trust the weights.** The co-deviation rate is measured among
 voters that *deviate from the plurality*. A bloc large enough to **be** the plurality never
 deviates from it, so it never registers as correlated — and the independent minority, which
 does co-deviate, is penalised instead. The correction inverts.
@@ -174,18 +193,22 @@ both land a median **17 points below the best single voter**. The test that asse
 failure is in the suite (`test_dominant_bloc_is_invisible_to_the_weights`) — it is a
 documented boundary, not a bug awaiting a fix.
 
-`effective_votes` still sees it: n_eff keeps falling as the bloc grows (1.91 → 1.68 → 1.55 →
-1.26 for blocs of 3, 5, 6, 8 of 10) while the bloc's weight returns to full once it never
-deviates from the plurality. **A low n_eff beside a largest group at full weight is the
-signature**, provided n_eff is also low against independent voters at the same accuracy:
-accurate independent voters score low too, with every weight at full. The demo prints all three
-and warns from 50% up.
+In the same experiment n_eff keeps falling as the bloc grows (1.91 → 1.68 → 1.55 → 1.26 for
+blocs of 3, 5, 6, 8 of 10), while the bloc's weight returns to full once it never deviates from
+the plurality. **The signature is a group of voters at full weight while the others are
+down-weighted**; `bloc_share` tells you whether the largest provenance group holds half the
+panel or more. A low n_eff comes with it but is no evidence on its own: accurate voters and
+unequal items lower n_eff with every weight at full when no two voters give the same wrong
+answer, and with few answer options independent voters score low with every weight down. The
+demo prints n_eff and the largest provenance share and warns from 50% up; the weights come from
+`learn_independence_weights`.
 
 ## What this package does not do
 
 - **It cannot repair a dominated panel** — see the boundary above.
 - **It is not a benchmark and ranks no models.** The bundled matrix is 57 answerable items, 4
-  model families, one judge. A screen, not a benchmark. Your numbers will differ.
+  models, one judge. The judge is gpt-4o-mini, the model of three of the ten voters. A screen,
+  not a benchmark. Your numbers will differ.
 - **It does not make a bad panel good.** On the demo panel the weighted accuracy of 51.7% is
   still below the best single voter's 58.6%. The honest conclusion there is that voting was
   the wrong move, and the tool says so.
@@ -194,10 +217,11 @@ and warns from 50% up.
   same learned weighting leaves overconfidence at **15.3 points, from 15.3** — the provenance
   weight moves it to 14.9. Read the −7.2 pp above as a direction, not a size. **Decision
   repair and calibration repair are different things**, and this package only does the first.
-- **Diversity is necessary, not sufficient.** Cross-model pairs in the demo that both break from
-  the majority still pick the same answer 18.5% of the time, and a nine-judge panel of seven families is
-  reported at about 2.2 effective votes on a different measure (Kohli, preprint). Measure your panel; do not
-  assume it from the roster.
+- **Diversity is not shown to be enough.** Cross-model pairs in the demo that both break from
+  the plurality pick the same answer 18.5% of the time, no more often than the same votes shuffled
+  within each item would. That is one panel of four models; a nine-judge panel of seven families
+  is reported at about 2.2 effective votes on a different measure (Kohli, preprint). Measure your
+  panel; do not assume it from the roster.
 
 ## Is the test suite real?
 
@@ -215,7 +239,7 @@ float equality where only equality-to-rounding holds, and the withdrawn-figure g
 found matching its own source text.
 
 ```bash
-pytest          # 236 tests, under half a minute, including the mutation gate
+pytest          # 371 tests, under a minute, including the mutation gate
 ```
 
 ## Related work
@@ -318,7 +342,7 @@ without saying which artefact they live in.
 | | how |
 |---|---|
 | every decimal figure in this README, the test count, the span of the absolute gap, the headline and the code examples | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run or to the boundary experiment; figures from cited work, including our own measurement note, are listed there with their source |
-| the behaviour of the ten public functions, including their error paths | `pytest` — 236 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
+| the behaviour of the ten public functions, including their error paths | `pytest` — 371 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
 | that the tests can fail | `pytest tests/test_mutation.py` breaks the mechanism three ways and requires each to be caught |
 | that the bundled dataset is unaltered | its SHA-256 is in `NOTICE`, together with the one command that reaches a matching hash on Zenodo — the record page itself lists an MD5, under a different filename |
 

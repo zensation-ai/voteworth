@@ -261,8 +261,8 @@ def test_bloc_share_flags_the_regime():
 
 def test_effective_votes_falls_as_the_bloc_grows():
     """n_eff is the second number: it keeps dropping through the regime where the bloc's weight
-    returns to full. That divergence is how the blind spot becomes visible from outside, next to
-    the independence baseline: accurate independent voters score a low n_eff too."""
+    returns to full. A low n_eff alone is no evidence (accurate voters and unequal items lower it
+    too); what marks the blind spot is the bloc at full weight while the others are down-weighted."""
     n = 10
     seen = []
     for n_bloc in (3, 5, 6, 8):

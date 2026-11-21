@@ -205,6 +205,10 @@ FOREIGN_FIGURES = {
          "(test_boundary_weights_and_gap_match_the_readme), a voter that never co-deviates "
          "(test_independence_weights_downweight_correlated_bloc), and every learned weight of "
          "ten independent voters right 80% of the time (test_raw_n_eff_rises_with_accuracy_alone)",
+    "1.4": "n_eff of ten independent voters right 80% of the time with two answer options; "
+           "test_two_answer_options_put_every_weight_at_one_tenth",
+    "0.1": "the learned weight of each of those ten voters; "
+           "test_two_answer_options_put_every_weight_at_one_tenth",
     "0.5": "two uses: the weight a voter locked to one partner receives "
            "(test_independence_weights_downweight_correlated_bloc), and the bloc share from "
            "which the demo warns (test_demo_warns_at_exactly_half)",
@@ -457,6 +461,37 @@ def test_both_entry_points_agree():
         capture_output=True, text=True, cwd=_ROOT,
     ).stdout
     assert a == b, "the two entry points have drifted apart"
+
+
+def _version_problems(pyproject: str, init: str, citation: str) -> list[str]:
+    """The three places a release names its version, read as text."""
+    found = {
+        "pyproject.toml": re.search(r'^version = "([^"]+)"$', pyproject, re.M),
+        "__version__": re.search(r'^__version__ = "([^"]+)"$', init, re.M),
+        "CITATION.cff": re.search(r"^version: (\S+)$", citation, re.M),
+    }
+    missing = [k for k, m in found.items() if not m]
+    if missing:
+        return [f"no version found in {missing}"]
+    versions = {k: m.group(1) for k, m in found.items()}
+    return [] if len(set(versions.values())) == 1 else [f"the versions differ: {versions}"]
+
+
+def test_versions_agree():
+    """v0.1.1 shipped with __version__ still at 0.1.0. publish.yml stops such a release; this
+    finds it before one is made."""
+    problems = _version_problems(
+        (_ROOT / "pyproject.toml").read_text(),
+        (_ROOT / "src" / "voteworth" / "__init__.py").read_text(),
+        (_ROOT / "CITATION.cff").read_text(),
+    )
+    assert not problems, problems
+
+
+def test_the_version_check_can_fire():
+    """Control arm, constructed: the 0.1.1 mismatch must be reported."""
+    assert _version_problems('version = "0.1.1"\n', '__version__ = "0.1.0"\n', "version: 0.1.1\n")
+    assert not _version_problems('version = "0.1.4"\n', '__version__ = "0.1.4"\n', "version: 0.1.4\n")
 
 
 def test_cited_dois_are_consistent(readme):
@@ -838,12 +873,12 @@ _ANSWERER_ROLES = {"voters", "writers"}
 
 
 def _headline_role(text: str):
-    """(count word, role noun) out of a headline like '**Ten LLM voters. Worth …'.
+    """(count word, role noun) out of a headline like '**Ten LLM voters, 1.48 …'.
 
-    The start of the line only: what follows 'Worth' carries the headline's figures, which
-    test_headline_figures_are_the_printed_n_eff_and_baseline reads.
+    The start of the line only, closed by a comma or, as in 0.1.3, a full stop: what follows
+    carries the headline's figure, which test_n_eff_figures_in_the_prose_are_the_printed_ones reads.
     """
-    match = re.search(r"^\*\*(\w+) (?:LLM )?(\w+)\. Worth ", text, re.M)
+    match = re.search(r"^\*\*(\w+) (?:LLM )?(\w+)[.,] ", text, re.M)
     return match.groups() if match else None
 
 
@@ -856,7 +891,7 @@ def test_headline_names_the_ten_by_their_role_in_the_data(readme):
         (Path(voteworth.__file__).parent / "data" / "panel_10_voters.json").read_text()
     )
     found = _headline_role(readme)
-    assert found, "the headline no longer has the shape '**Ten … voters. Worth …'"
+    assert found, "the headline no longer has the shape '**Ten … voters, …'"
     count, role = found
     assert _WORD_NUMBERS.get(count.lower()) == len(data["panel"]) == len(data["writers"]), (
         f"the headline counts {count!r}; the bundled data hold {len(data['panel'])} voters"
@@ -875,68 +910,142 @@ def test_the_role_check_can_fire():
     assert _headline_role("no headline here") is None
 
 
-# Since 0.1.4 the headline states two figures: n_eff, and what independent voters as accurate
-# would score. The figure check above sees only that each is producible. Two producible figures
-# in each other's place pass it, and n_eff without its baseline is the reading the review of
-# 2026-11-21 found misleading. So every sentence that states the pair, and the sentence that
-# states both baselines, is read here against the two lines the demo prints.
-_PAIR_SENTENCE = re.compile(
-    r"[Ww]orth (\d\.\d\d) effective votes; independent voters as accurate would be worth (\d\.\d\d)\."
+# The prose states n_eff and the figures printed beside it: in the headline, in the first
+# finding, and in the sentences on the baselines and on the items every voter got right. The
+# figure check above sees only that each is producible, so two producible figures in each
+# other's place pass it. Each sentence is read here against the lines the demo prints. Until
+# the review of 2026-11-21 the headline also stated a baseline, which the review withdrew: the
+# comparison cannot separate differences in item difficulty from shared errors.
+_HEADLINE = re.compile(r"^\*\*\w+ (?:LLM )?\w+, (\d\.\d\d) effective votes by raw agreement\.\*\*$", re.M)
+_LEAD = re.compile(
+    r"came to (\d\.\d\d) effective votes by raw agreement, on the (\d+) items with a gold answer "
+    r"\((\d\.\d\d) on all (\d+)\)"
 )
 _BASELINES_SENTENCE = re.compile(
-    r"(\d\.\d\d) when wrong answers fall as they do on each item, (\d\.\d\d) when no two wrong "
-    r"answers coincide"
+    r"(\d\.\d\d) if no two wrong answers coincide, (\d\.\d\d) if wrong answers coincide as they do "
+    r"on each item"
+)
+_ALL_RIGHT_SENTENCE = re.compile(
+    r"[Aa]ll (\w+) voters got (\d+) of the (\d+) right, where such voters with these accuracies would "
+    r"get (\d\.\d\d)"
 )
 
 
-def _printed_n_eff_and_baselines(demo_output: str) -> tuple[str, str, str]:
-    ne = re.search(r"effective votes \(Kish, raw agreement\):\s+(\d\.\d\d) of", demo_output)
-    base = re.search(
-        r"independent voters, same accuracies:\s+(\d\.\d\d) \((\d\.\d\d) if no two wrong "
-        r"answers coincide\)", demo_output
-    )
-    assert ne and base, f"the demo no longer prints n_eff and its baselines in the shape read here:\n{demo_output}"
-    return ne.group(1), base.group(1), base.group(2)
+def _printed_n_eff_figures(demo_output: str) -> dict:
+    """The figures the demo prints around n_eff, as printed (strings, not rounded again)."""
+    found = {
+        "n_eff": re.search(r"effective votes \(Kish, raw agreement\):\s+(\d\.\d\d) of (\d+)", demo_output),
+        "items": re.search(r"on the (\d+) items with a gold answer; on all (\d+) items: (\d\.\d\d)", demo_output),
+        "per_item": re.search(r"wrong answers coinciding as on each item:\s+(\d\.\d\d)", demo_output),
+        "distinct": re.search(r"no two wrong answers alike:\s+(\d\.\d\d)", demo_output),
+        "all_right": re.search(r"items all (\d+) voters got right:\s+(\d+) of (\d+)", demo_output),
+        "expected": re.search(r"on equally hard items: (\d\.\d\d)", demo_output),
+    }
+    missing = [k for k, m in found.items() if not m]
+    assert not missing, f"the demo no longer prints {missing} in the shape read here:\n{demo_output}"
+    return {k: m.groups() for k, m in found.items()}
 
 
-def _headline_figure_problems(text: str, demo_output: str) -> list[str]:
-    ne, base, distinct = _printed_n_eff_and_baselines(demo_output)
+def _n_eff_figure_problems(text: str, demo_output: str) -> list[str]:
+    printed = _printed_n_eff_figures(demo_output)
+    ne = printed["n_eff"][0]
+    answerable, total, ne_all = printed["items"]
     flat = " ".join(text.replace("**", "").split())
     problems = []
-    if not re.search(r"^\*\*\w+ (?:LLM )?\w+\. " + _PAIR_SENTENCE.pattern + r"\*\*$", text, re.M):
-        problems.append("the headline does not state n_eff beside its baseline in the form "
-                        "'Worth N effective votes; independent voters as accurate would be worth M.'")
-    for match in _PAIR_SENTENCE.finditer(flat):
-        if (match.group(1), match.group(2)) != (ne, base):
-            problems.append(f"'{match.group(0)}' states {match.group(1)} and {match.group(2)}; "
-                            f"the demo prints n_eff {ne} and the baseline {base}")
-    for match in _BASELINES_SENTENCE.finditer(flat):
-        if (match.group(1), match.group(2)) != (base, distinct):
-            problems.append(f"'{match.group(0)}' states {match.group(1)} and {match.group(2)}; "
-                            f"the demo prints {base} and {distinct}")
+    headline = _HEADLINE.search(text)
+    if not headline:
+        problems.append("the headline is not of the form '**Ten LLM voters, N effective votes by raw "
+                        "agreement.**'")
+    elif headline.group(1) != ne:
+        problems.append(f"the headline states {headline.group(1)}; the demo prints n_eff {ne}")
+    lead = _LEAD.search(flat)
+    if not lead:
+        problems.append("no first finding of the form 'came to N effective votes by raw agreement, on "
+                        "the K items with a gold answer (M on all T)'")
+    elif lead.groups() != (ne, answerable, ne_all, total):
+        problems.append(f"the first finding states {lead.groups()}; the demo prints {(ne, answerable, ne_all, total)}")
+    baselines = _BASELINES_SENTENCE.search(flat)
+    if not baselines:
+        problems.append("no sentence stating the two baselines in the shape read here")
+    elif baselines.groups() != (printed["distinct"][0], printed["per_item"][0]):
+        problems.append(f"the baselines sentence states {baselines.groups()}; the demo prints "
+                        f"{(printed['distinct'][0], printed['per_item'][0])}")
+    all_right = _ALL_RIGHT_SENTENCE.search(flat)
+    if not all_right:
+        problems.append("no sentence stating the items every voter got right in the shape read here")
+    else:
+        voters, got, of, expected = all_right.groups()
+        if (_WORD_NUMBERS.get(voters.lower()), got, of, expected) != (
+            int(printed["all_right"][0]), printed["all_right"][1], printed["all_right"][2], printed["expected"][0]
+        ):
+            problems.append(f"the all-right sentence states {all_right.groups()}; the demo prints "
+                            f"{printed['all_right']} and {printed['expected']}")
     return problems
 
 
-def test_headline_figures_are_the_printed_n_eff_and_baseline(readme, demo_output):
-    """The headline's two figures, and every other sentence stating them, match the demo."""
-    problems = _headline_figure_problems(readme, demo_output)
+def test_n_eff_figures_in_the_prose_are_the_printed_ones(readme, demo_output):
+    """The headline, the first finding and the sentences on the baselines and on the items every
+    voter got right state the figures the demo prints, each in its own place."""
+    problems = _n_eff_figure_problems(readme, demo_output)
     assert not problems, "\n".join(problems)
-    flat = " ".join(readme.replace("**", "").split())
-    assert len(_PAIR_SENTENCE.findall(flat)) >= 2 and _BASELINES_SENTENCE.search(flat), (
-        "the README no longer states the pair in the headline and the first finding, or the "
-        "two baselines, in the shape this test reads"
-    )
 
 
-def test_the_headline_figure_check_can_fire(demo_output):
-    """Control arm: the 0.1.3 headline, which states no baseline, and today's headline with the
-    two figures in each other's place, the second one constructed."""
-    assert _headline_figure_problems("**Ten judges. Worth 1.48 independent votes.**", demo_output)
-    ne, base, distinct = _printed_n_eff_and_baselines(demo_output)
-    swapped = (f"**Ten LLM voters. Worth {base} effective votes; independent voters as accurate "
-               f"would be worth {ne}.**\n\n{distinct} when wrong answers fall as they do on each "
-               f"item, {base} when no two wrong answers coincide")
-    assert len(_headline_figure_problems(swapped, demo_output)) == 2
+def test_the_n_eff_figure_check_can_fire(demo_output):
+    """Control arm: the 0.1.3 headline and the first 0.1.4 headline (a baseline beside n_eff,
+    withdrawn) must be refused, and constructed sentences with figures in each other's place must
+    be reported on exactly those counts."""
+    printed = _printed_n_eff_figures(demo_output)
+    ne, (answerable, total, ne_all) = printed["n_eff"][0], printed["items"]
+    per_item, distinct = printed["per_item"][0], printed["distinct"][0]
+    body = (f"Ten voters came to {ne} effective votes by raw agreement, on the {answerable} items with a "
+            f"gold answer ({ne_all} on all {total}). {distinct} if no two wrong answers coincide, "
+            f"{per_item} if wrong answers coincide as they do on each item. All ten voters got "
+            f"{printed['all_right'][1]} of the {printed['all_right'][2]} right, where such voters with "
+            f"these accuracies would get {printed['expected'][0]}.")
+    assert not _n_eff_figure_problems(f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n{body}", demo_output)
+    for old in ("**Ten judges. Worth 1.48 independent votes.**",
+                "**Ten LLM voters. Worth 1.48 effective votes; independent voters as accurate would be worth 2.03.**"):
+        problems = _n_eff_figure_problems(f"{old}\n\n{body}", demo_output)
+        assert len(problems) == 1 and problems[0].startswith("the headline is not"), problems
+    swapped = body.replace(f"{distinct} if no", f"{per_item} if no").replace(f"{per_item} if wrong", f"{distinct} if wrong")
+    problems = _n_eff_figure_problems(f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n{swapped}", demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the baselines sentence"), problems
+
+
+# The judge is part of the data's description, not of the votes: one model judged the ten
+# voters' answers, and it is the model of three of them (review of 2026-11-21).
+_JUDGE_SENTENCE = re.compile(r"The judge is (\S+), the model of (\w+) of the (\w+) voters\.")
+
+
+def _judge_problems(text: str, data: dict) -> list[str]:
+    match = _JUDGE_SENTENCE.search(" ".join(text.split()))
+    if not match:
+        return ["no sentence of the form 'The judge is M, the model of K of the N voters.'"]
+    judge, k, total = match.groups()
+    same = sum(voter["model"] == data["judge"] for voter in data["panel"])
+    expected = [("judge", judge, data["judge"]), ("voters with the judge's model", _WORD_NUMBERS.get(k.lower()), same),
+                ("voters", _WORD_NUMBERS.get(total.lower()), len(data["panel"]))]
+    return [f"{what}: text {said}, data {got}" for what, said, got in expected if said != got]
+
+
+def _bundled_data() -> dict:
+    import json
+
+    import voteworth
+
+    return json.loads((Path(voteworth.__file__).parent / "data" / "panel_10_voters.json").read_text())
+
+
+def test_the_judge_sentence_matches_the_data(readme):
+    problems = _judge_problems(readme, _bundled_data())
+    assert not problems, "\n".join(problems)
+
+
+def test_the_judge_check_can_fire():
+    """Control arm, constructed: another judge and another count must both be reported."""
+    planted = "The judge is claude-haiku-4-5, the model of two of the ten voters."
+    assert len(_judge_problems(planted, _bundled_data())) == 2
+    assert _judge_problems("no such sentence", _bundled_data())
 
 
 def _python_blocks(text: str) -> list[str]:

@@ -59,14 +59,28 @@ CLAIMS: dict[str, str] = {
         "test:test_dominant_bloc_is_invisible_to_the_weights"
     ),
     "For every pair of voters": "test:test_independence_weights_downweight_correlated_bloc",
-    # Added on 2026-11-21 with the independence baseline: n_eff carries accuracy, and a bloc's
-    # full weight is the signature only next to that baseline (review of 0.1.4).
+    # Added on 2026-11-21 with the reviews of 0.1.4: n_eff rises with accuracy, with unequal
+    # items and with shared errors; the signature is a group at full weight while the others are
+    # down-weighted; the same-model contrast holds against votes shuffled within each item.
     "with every learned weight at 1.0": "test:test_raw_n_eff_rises_with_accuracy_alone",
+    "every weight drops to 0.10": "test:test_two_answer_options_put_every_weight_at_one_tenth",
     "once it never deviates from the plurality": (
         "test:test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not"
     ),
-    "accurate independent voters score low too, with every weight at full": (
-        "test:test_raw_n_eff_rises_with_accuracy_alone"
+    "lower n_eff with every weight at full when no two voters give the same wrong answer": (
+        "test:test_unequal_items_lower_n_eff_with_every_weight_at_full"
+    ),
+    "independent voters score low with every weight down": (
+        "test:test_two_answer_options_put_every_weight_at_one_tenth"
+    ),
+    "none of which isolates that dependence on its own": (
+        "test:test_two_answer_options_put_every_weight_at_one_tenth"
+    ),
+    "an item on which only one voter is wrong as full coincidence": (
+        "test:test_the_printed_baseline_is_what_independent_voters_score"
+    ),
+    "keeps every item's answers and drops who gave them": (
+        "test:test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives"
     ),
     # --- unbindable, with the reason -------------------------------------------
     "A passing suite proves nothing on its own": (

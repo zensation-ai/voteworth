@@ -176,16 +176,25 @@ def _mean_pair_agreement(history, n):
     )
 
 
+# The condition is part of the claim: the 80% panel scores 1.48 with every weight at full only if
+# no two voters ever give the same wrong answer (review of 2026-11-21). With two answer options
+# every wrong answer is the same one, and every weight drops to 0.10.
 _README_COUNTEREXAMPLE = re.compile(
-    r"ten independent voters that are each right (\d+)% of the time also score (\d\.\d\d), "
-    r"with every learned weight at (\d\.\d)"
+    r"[Tt]en independent voters that are each right (\d+)% of the time and never give the same wrong "
+    r"answer also score (\d\.\d\d), with every learned weight at (\d\.\d)"
+)
+_README_TWO_OPTIONS = re.compile(
+    r"With two answer options, where every wrong answer is the same one, they score (\d\.\d\d), and "
+    r"every weight drops to (\d\.\d\d)"
 )
 _DOC_COUNTEREXAMPLE = re.compile(
-    r"Ten independent voters that are each right (\d+)% of the time agree on about (\d+)% of "
-    r"pairs and score about (\d\.\d\d)"
+    r"Ten independent voters that are each right (\d+)% of the time and never give the same wrong "
+    r"answer agree on about (\d+)% of pairs and score about (\d\.\d\d)"
 )
+_DOC_TWO_OPTIONS = re.compile(r"with two answer options they agree on (\d+)% and score about (\d\.\d\d)")
 _DOC_ERROR_MODE = re.compile(
-    r"two independent voters right (\d+)% of the time are both right or both wrong (\d+)% of the time"
+    r"two independent voters right (\d+)% of the time are both right or both wrong (\d+)% of the "
+    r"time, as are two right (\d+)% of the time"
 )
 
 
@@ -208,14 +217,82 @@ def test_raw_n_eff_rises_with_accuracy_alone():
 
 
 def test_error_mode_rises_with_accuracy_too():
-    """Mode "error" carries accuracy as well: two independent voters right p of the time are both
-    right or both wrong p^2 + (1-p)^2 of the time. The docstring's figures are read out of it."""
+    """Mode "error" carries accuracy as well, but only above 50%: two independent voters right p of
+    the time are both right or both wrong p^2 + (1-p)^2 of the time, which is the same at p and at
+    1 - p. One bundled voter is right 49.1% of the time. The docstring's figures are read out of it."""
     doc = _DOC_ERROR_MODE.search(_flat(inspect.getdoc(effective_votes)))
     assert doc, "effective_votes no longer states the error-mode figure in the shape read here"
-    p = int(doc.group(1)) / 100
-    assert round(100 * (p * p + (1 - p) ** 2)) == int(doc.group(2))
-    right_or_wrong = [[v == 0 for v in row] for row in _independent_panel(10, p, items=2000, seed=20261121)]
-    assert abs(100 * _mean_pair_agreement(right_or_wrong, 10) - int(doc.group(2))) < 1.0
+    for share in (doc.group(1), doc.group(3)):
+        p = int(share) / 100
+        assert round(100 * (p * p + (1 - p) ** 2)) == int(doc.group(2)), share
+        right_or_wrong = [[v == 0 for v in row] for row in _independent_panel(10, p, items=2000, seed=20261121)]
+        assert abs(100 * _mean_pair_agreement(right_or_wrong, 10) - int(doc.group(2))) < 1.0, share
+
+
+def _two_option_panel(n, p, items, seed):
+    """n independent voters, each right with probability p, with one wrong answer for everybody."""
+    rng = random.Random(seed)
+    return [[0 if rng.random() < p else 1 for _ in range(n)] for _ in range(items)]
+
+
+def test_two_answer_options_put_every_weight_at_one_tenth():
+    """With two answer options every wrong answer is the same one: ten independent voters right 80%
+    of the time agree on p^2 + (1-p)^2 of pairs, score about 1.40, and every learned weight is
+    1/(1 + 9) because every pair that deviates together deviates with the same answer."""
+    readme = _README_TWO_OPTIONS.search(_flat(_README.read_text()))
+    doc = _DOC_TWO_OPTIONS.search(_flat(inspect.getdoc(effective_votes)))
+    accuracy = _README_COUNTEREXAMPLE.search(_flat(_README.read_text()))
+    assert readme and doc and accuracy, "the README or effective_votes no longer states the two-option case"
+    p = int(accuracy.group(1)) / 100
+    assert readme.group(1) == doc.group(2), (readme.groups(), doc.groups())
+    assert round(10 / (1 + 9 * (p * p + (1 - p) ** 2)), 2) == float(readme.group(1))
+    history = _two_option_panel(10, p, items=2000, seed=20261121)
+    assert abs(effective_votes(history, 10) - float(readme.group(1))) < 0.03
+    assert abs(100 * _mean_pair_agreement(history, 10) - int(doc.group(1))) < 1.0
+    assert all(abs(w - float(readme.group(2))) < 1e-12 for w in learn_independence_weights(history, 10))
+
+
+def _unequal_items_panel(items, seed, easy=0.95, hard=0.30, n=10):
+    """Independent voters on items of two kinds, half easy and half hard; no two voters ever give the
+    same wrong answer."""
+    rng = random.Random(seed)
+    return [
+        [0 if rng.random() < (easy if k % 2 == 0 else hard) else 1000 * (i + 1) + rng.randint(0, 999) for i in range(n)]
+        for k in range(items)
+    ]
+
+
+def test_unequal_items_lower_n_eff_with_every_weight_at_full():
+    """Half easy items (95% right) and half hard ones (30%), mean accuracy 62.5%: n_eff comes out
+    near its closed form, 1.83, well under the 2.21 of equally hard items at the same mean, and every
+    learned weight stays at 1.0, because no two voters give the same wrong answer."""
+    n_eff = effective_votes(_unequal_items_panel(2000, seed=20261121), 10)
+    unequal = 10 / (1 + 9 * (0.95 ** 2 + 0.30 ** 2) / 2)
+    equal = 10 / (1 + 9 * 0.625 ** 2)
+    assert abs(n_eff - unequal) < 0.03, (n_eff, unequal)
+    assert equal - n_eff > 0.3, (equal, n_eff)
+    assert learn_independence_weights(_unequal_items_panel(2000, seed=20261121), 10) == [1.0] * 10
+
+
+def test_unequal_items_and_voters_right_together_both_raise_the_all_right_count():
+    """The README's reading of 20 against 0.34: independent voters on equally hard items are one
+    model, and two different departures from it both raise the count of items every voter gets
+    right. Unequal items do it with independent voters; voters that are right together do it on
+    equally hard items. The count cannot say which."""
+    def excess(history):
+        acc = [sum(row[i] == 0 for row in history) / len(history) for i in range(10)]
+        expected = len(history) * math.prod(acc)
+        return sum(all(v == 0 for v in row) for row in history) / max(expected, 1e-9)
+
+    rng = random.Random(20261121)
+    lockstep = []
+    for _ in range(2000):
+        right = rng.random() < 0.625
+        lockstep.append([0 if right else 1000 * (i + 1) + rng.randint(0, 999) for i in range(5)]
+                        + [0 if rng.random() < 0.625 else 1000 * (i + 6) + rng.randint(0, 999) for i in range(5)])
+    assert excess(_independent_panel(10, 0.625, items=2000, seed=20261121)) < 1.5
+    assert excess(_unequal_items_panel(2000, seed=20261121)) > 3
+    assert excess(lockstep) > 3
 
 
 def test_n_eff_order_does_not_follow_dependence():
@@ -288,12 +365,10 @@ def _printed_baselines():
     buf = io.StringIO()
     with redirect_stdout(buf):
         voteworth.demo.main()
-    match = re.search(
-        r"independent voters, same accuracies:\s+(\d\.\d\d) \((\d\.\d\d) if no two wrong answers coincide\)",
-        buf.getvalue(),
-    )
-    assert match, "the demo no longer prints the baseline in the shape read here"
-    return float(match.group(1)), float(match.group(2))
+    per_item = re.search(r"wrong answers coinciding as on each item:\s+(\d\.\d\d)", buf.getvalue())
+    distinct = re.search(r"no two wrong answers alike:\s+(\d\.\d\d)", buf.getvalue())
+    assert per_item and distinct, "the demo no longer prints the baselines in the shape read here"
+    return float(per_item.group(1)), float(distinct.group(1))
 
 
 def test_the_printed_baseline_is_what_independent_voters_score():
@@ -352,10 +427,10 @@ def test_the_baseline_does_not_depend_on_the_cluster_ids():
         assert all(abs(a - b) < 1e-12 for a, b in zip(reference, renamed)), (seed, reference, renamed)
 
 
-def test_same_model_pairs_share_their_wrong_answers_more_often():
-    """The README's reason that voters from one model add less than their count: on the bundled
-    panel, same-model pairs that both break from the plurality pick the same answer more often
-    than cross-model pairs. Computed from the votes, the way the demo's first section is."""
+def test_same_model_pairs_pick_the_same_answer_more_often_when_both_deviate():
+    """On the bundled panel, same-model pairs that both break from the plurality pick the same
+    answer more often than cross-model pairs. Computed from the votes, the way the demo's first
+    section is. Deviating is not being wrong: the plurality is wrong on 23 of the 57 items."""
     rows, _, n = _bundled()
     models = [voter["model"] for voter in json.loads(voteworth.demo.DATA.read_text())["panel"]]
     rates = pairwise_coerror(rows, n)
@@ -364,3 +439,73 @@ def test_same_model_pairs_share_their_wrong_answers_more_often():
     cross = [rates[i][j] for i, j in pairs if models[i] != models[j]]
     assert same and cross, "the bundled panel no longer has both kinds of pair"
     assert statistics.mean(same) > statistics.mean(cross), (statistics.mean(same), statistics.mean(cross))
+
+
+def test_the_demo_counts_the_items_all_voters_got_right():
+    """The demo's line on items every voter got right, recomputed from the data: the count, and
+    what independent voters with these accuracies would get on equally hard items."""
+    rows, gold, n = _bundled()
+    count = sum(all(v == g for v in row) for row, g in zip(rows, gold))
+    accuracies = [sum(row[i] == g for row, g in zip(rows, gold)) / len(rows) for i in range(n)]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        voteworth.demo.main()
+    line = re.search(r"items all (\d+) voters got right:\s+(\d+) of (\d+)", buf.getvalue())
+    expected = re.search(r"on equally hard items: (\d\.\d\d)", buf.getvalue())
+    assert line and expected, "the demo no longer prints the all-right line in the shape read here"
+    assert (int(line.group(1)), int(line.group(2)), int(line.group(3))) == (n, count, len(rows))
+    assert f"{len(rows) * math.prod(accuracies):.2f}" == expected.group(1)
+
+
+# ── the same-model contrast against votes shuffled within each item ──
+#
+# The README says that same-model pairs agree beyond what the items produce, and that this needs
+# no labels. Shuffling the votes within each item keeps every item's answers and drops who gave
+# them, so under the shuffle no pair kind can be ahead of the other except by chance. The figures
+# and the number of shuffles are read out of the README.
+
+_SHUFFLE_SENTENCE = re.compile(
+    r"fewer than one in a thousand such shuffles put same-model pairs as far ahead, in that rate "
+    r"\(\+(\d\.\d{3})\) or in raw agreement \(\+(\d\.\d{3})\)"
+)
+# Two thousand shuffles, so that "fewer than one in a thousand" means at most one of them. The
+# third review counted none in 2,000 and one in 5,000 with its own seed; this seed gives one.
+_SHUFFLES = 2000
+
+
+def _pair_kinds(n):
+    models = [voter["model"] for voter in json.loads(voteworth.demo.DATA.read_text())["panel"]]
+    pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
+    return [p for p in pairs if models[p[0]] == models[p[1]]], [p for p in pairs if models[p[0]] != models[p[1]]]
+
+
+def _contrasts(rows, n, same, cross):
+    rates = pairwise_coerror(rows, n)
+    codev = lambda ps: statistics.mean(rates[i][j] for i, j in ps if rates[i][j] == rates[i][j])
+    raw = lambda ps: statistics.mean(sum(r[i] == r[j] for r in rows) / len(rows) for i, j in ps)
+    return codev(same) - codev(cross), raw(same) - raw(cross), codev(cross)
+
+
+def test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives():
+    match = _SHUFFLE_SENTENCE.search(_flat(_README.read_text()))
+    assert match, "the README no longer states the shuffle in the shape read here"
+    rows, _, n = _bundled()
+    same, cross = _pair_kinds(n)
+    codev_gap, raw_gap, cross_rate = _contrasts(rows, n, same, cross)
+    assert (f"{codev_gap:.3f}", f"{raw_gap:.3f}") == (match.group(1), match.group(2))
+    rng = random.Random(20261121)
+    reached = [0, 0]
+    null_codev, null_cross = [], []
+    for _ in range(_SHUFFLES):
+        shuffled = [rng.sample(row, len(row)) for row in rows]
+        c, r, x = _contrasts(shuffled, n, same, cross)
+        reached[0] += c >= codev_gap
+        reached[1] += r >= raw_gap
+        null_codev.append(c)
+        null_cross.append(x)
+    assert all(count / _SHUFFLES < 0.001 for count in reached), reached
+    assert abs(statistics.mean(null_codev)) < 0.01, statistics.mean(null_codev)
+    # "Diversity is not shown to be enough": cross-model pairs pick the same answer no more often
+    # than the same votes shuffled within each item would.
+    assert cross_rate < statistics.mean(null_cross), (cross_rate, statistics.mean(null_cross))
+    assert "no more often than the same votes shuffled within each item would" in _flat(_README.read_text())

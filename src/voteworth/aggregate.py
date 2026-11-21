@@ -9,12 +9,12 @@ their *error modes*: when they are wrong, they tend to be wrong in the same way.
 correlated bloc then wins the majority while being wrong, and the agreement among its
 members is read as confidence.
 
-This module measures that correlation and corrects for it.
+This module measures how often voters deviate together, and corrects the vote for it.
 
 `learn_independence_weights` looks at a vote history and, for each pair of voters, asks:
 of the items where both deviated from the panel's plurality, how often did they deviate
-with the *same* value? A voter that shares its errors with others is redundant and gets
-down-weighted; a voter that errs in its own way keeps full weight.
+with the *same* value? A voter that deviates with the same value as others is redundant and
+gets down-weighted; a voter that deviates in its own way keeps full weight.
 
 The structural limit, stated up front
 -------------------------------------
@@ -97,7 +97,7 @@ def learn_independence_weights(history, n_voters: int):
     weight[i] = 1 / (1 + R[i]) with R[i] = Σ_{j≠i} co_same[i][j] / co_both[i][j].
 
     A voter that never co-deviates has R = 0 and keeps weight 1.0. A voter locked to one
-    partner (always the same wrong answer together) has R = 1 and drops to 0.5.
+    partner (always deviating together, with the same answer) has R = 1 and drops to 0.5.
 
     An empty history, or one that never produces two simultaneous deviations, yields uniform
     weights — nothing was observed, so nothing is claimed.
@@ -114,10 +114,11 @@ def learn_independence_weights(history, n_voters: int):
 
 
 def pairwise_coerror(history, n_voters: int):
-    """Diagnostic: the shared-error rate for every voter pair.
+    """Diagnostic: the co-deviation rate for every voter pair.
 
     Of the items where both voters deviated from the plurality, the fraction where they
-    deviated with the *same* value. High values mark a correlated bloc.
+    deviated with the *same* value. High values mark pairs that deviate together with the same
+    answer; deviating from the plurality is not the same as being wrong.
 
     Returns an n×n matrix, `np.nan` on the diagonal and wherever a pair never co-deviated —
     an undefined rate is reported as undefined, never as zero.
@@ -174,11 +175,14 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
     correlations (Kohli's about 2.2 for nine judges uses the phi of error indicators against
     gold labels) and are not on the same scale.
 
-    Agreement rises with accuracy as well as with dependence. Ten independent voters that are
-    each right 80% of the time agree on about 64% of pairs and score about 1.48. Read n_eff
-    next to what independent voters with the same accuracies would score, which needs gold
-    labels (the demo computes it); between panels of different accuracy the order of n_eff
-    does not carry.
+    Agreement rises with differences in difficulty between items, with shared errors, and with
+    accuracy once voters are right more often than not. Ten independent voters that are each
+    right 80% of the time and never give the same wrong answer agree on about 64% of pairs and
+    score about 1.48; with two answer options they agree on 68% and score about 1.40. What
+    independent voters would score depends on what is assumed about the items, and n_eff alone
+    cannot settle it: `python -m voteworth.demo` prints two such figures for the bundled panel,
+    and how many items all ten voters got right, against how many independent voters on equally
+    hard items would. A lower n_eff does not mark the more dependent panel.
 
     `mode` selects what "agreeing" means:
       "raw"   — the two voters cast the same vote (no labels needed; the default).
@@ -188,19 +192,23 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
     **Read this together with the weights.** The two numbers answer different questions and
     disagree in exactly the case this package is weakest at: when one bloc holds the plurality,
     n_eff keeps falling while the bloc's learned weight returns to full, because a bloc that
-    *is* the plurality never deviates from it and so never registers as correlated. A low
-    n_eff beside a largest group at full weight is the signature of that blind spot — see
-    `bloc_share` — provided n_eff is also low against independent voters at the same
-    accuracy: accurate independent voters score low too, with every weight at full.
+    *is* the plurality never deviates from it and so never registers as correlated. The
+    signature of that blind spot is a group of voters at full weight while the others are
+    down-weighted — see `bloc_share`. A low n_eff comes with it but is no evidence on its own:
+    accurate voters and unequal items lower n_eff with every weight at full when no two voters
+    give the same wrong answer, and with few answer options independent voters score low with
+    every weight down.
 
     Caveat, stated because it is easy to over-read: Kish's formula is defined for an
     intraclass correlation. Mean pairwise agreement is a stand-in for it, a coarse one for
-    categorical labels, and it carries the voters' accuracy with it.
+    categorical labels, and it carries the voters' accuracy and the spread of item difficulty
+    with it.
 
     Both modes run the same computation; "error" only means the history holds booleans
-    (right/wrong) instead of votes. "error" rises with accuracy too: two independent voters
-    right 80% of the time are both right or both wrong 68% of the time. Any other value of
-    `mode` raises, so that a typo cannot pass silently.
+    (right/wrong) instead of votes. "error" rises with accuracy too once voters are right more
+    often than not, and with differences in item difficulty: two independent voters right 80%
+    of the time are both right or both wrong 68% of the time, as are two right 20% of the time.
+    Any other value of `mode` raises, so that a typo cannot pass silently.
     """
     if mode not in ("raw", "error"):
         raise ValueError(f'mode must be "raw" or "error", got {mode!r}')
@@ -228,7 +236,7 @@ def bloc_share(sources) -> float:
     """The share of the panel held by its largest provenance group.
 
     From 0.5 up one group can carry the plurality on its own; at exactly half it wins every tie
-    its answer wins on cluster id, as the first answer in input order does. The shared-error
+    its answer wins on cluster id, as the first answer in input order does. The co-deviation
     statistic this package relies on stops seeing it: the bloc never deviates from a plurality
     it constitutes, so it accrues no penalty, while the independent minority co-deviates and is
     down-weighted.
