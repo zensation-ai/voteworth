@@ -12,6 +12,7 @@ voter" figure must be the one the boundary experiment gives.
 """
 from __future__ import annotations
 
+import importlib
 import inspect
 import io
 import re
@@ -21,10 +22,15 @@ from contextlib import redirect_stdout
 import pytest
 
 import voteworth
-import voteworth.aggregate
 import voteworth.demo
 from test_aggregate import boundary_run
 from test_readme_claims import FOREIGN_FIGURES, _decimals, _percentages
+
+# Not `voteworth.aggregate`: `voteworth/__init__.py` imports the function `aggregate`, and that
+# name shadows the submodule on the package. The first version of this file read
+# `voteworth.aggregate` and so checked the docstring of the function twice and the module
+# docstring never (found 2026-11-21, while checking the module's INERT sentence).
+_AGGREGATE_MODULE = importlib.import_module("voteworth.aggregate")
 
 
 @pytest.fixture(scope="module")
@@ -37,10 +43,21 @@ def demo_output() -> str:
 
 def _docstrings() -> dict[str, str]:
     """Every docstring a user can reach with help(): the modules and each public function."""
-    docs = {m.__name__: inspect.getdoc(m) or "" for m in (voteworth, voteworth.aggregate, voteworth.demo)}
+    docs = {m.__name__: inspect.getdoc(m) or "" for m in (voteworth, _AGGREGATE_MODULE, voteworth.demo)}
+    # Functions under their own key: the function `aggregate` would otherwise overwrite the
+    # module `voteworth.aggregate` in this dict, the same shadowing a second time.
     for name in voteworth.__all__:
-        docs[f"voteworth.{name}"] = inspect.getdoc(getattr(voteworth, name)) or ""
+        docs[f"{name}()"] = inspect.getdoc(getattr(voteworth, name)) or ""
     return docs
+
+
+def test_the_module_docstrings_are_the_modules():
+    """Control arm for the shadowing above: the text read for voteworth.aggregate must be the
+    module's docstring, which names the structural limit, and the function's must be there too."""
+    docs = _docstrings()
+    assert inspect.ismodule(_AGGREGATE_MODULE)
+    assert "The structural limit" in docs["voteworth.aggregate"]
+    assert docs["aggregate()"].startswith("Weighted plurality over cluster ids")
 
 
 def _unexplained(doc: str, produced: set[str]) -> list[str]:

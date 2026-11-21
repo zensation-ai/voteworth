@@ -62,7 +62,7 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
   3x gpt-4o-mini            acc  37.9% →  37.9%   INERT — weighting changed nothing
   3x gpt-4.1-mini           acc  51.7% →  51.7%   INERT — weighting changed nothing
   → Provenance weighting needs voters from different sources. A same-model panel
-    cannot be repaired by reweighting; it has to be made diverse.
+    cannot be repaired by provenance weighting; it has to be made diverse.
   → Diversity is necessary, not sufficient: when cross-model pairs both break from
     the majority, they still pick the same answer 18.5% of the time, and this
     panel of four families is worth 1.5 effective votes out of 10.
@@ -137,7 +137,8 @@ structural_weights(["gpt-4o-mini", "gpt-4o-mini", "gpt-4o-mini", "claude-haiku-4
 
 Votes are cluster ids. For free text, turn them into ids first — `cluster_answers` (embedding
 cosine, good for paraphrase) or `cluster_answers_by_fn` (an equality callback, usually an LLM
-judge — the right choice for short factual answers, where embeddings merge two different dates).
+judge — the right choice for short factual answers, where embeddings can merge two different
+dates).
 
 ## How the weight is computed
 
@@ -166,8 +167,9 @@ failure is in the suite (`test_dominant_bloc_is_invisible_to_the_weights`) — i
 documented boundary, not a bug awaiting a fix.
 
 `effective_votes` still sees it: n_eff keeps falling as the bloc grows (1.91 → 1.68 → 1.55 →
-1.26 for blocs of 3, 5, 6, 8 of 10) while the weights go flat. **A low n_eff beside uniform
-weights is the signature.** The demo prints both and warns above 50%.
+1.26 for blocs of 3, 5, 6, 8 of 10) while the bloc's weight returns to full once it holds the
+plurality. **A low n_eff beside a largest group at full weight is the signature.** The demo
+prints both and warns above 50%.
 
 ## What this package does not do
 
@@ -193,15 +195,16 @@ A passing suite proves nothing on its own; it proves something once you have see
 the right reason. `tests/test_mutation.py` breaks the mechanism three ways — kills the
 weighting, reverses the documented tie-break, blinds the shared-error detector — and requires
 the suite to catch each one, with an unmutated control run so that failures cannot come from
-the harness itself. `tests/test_readme_claims.py` parses the numbers out of *this file* and
-checks them against a live run, so a stale README is a red test.
+the harness itself. `tests/test_readme_claims.py` parses the decimal figures, the test count,
+the span sentence and the headline out of *this file* and checks them against a live run, so a
+stale README is a red test.
 
 Both have already paid for themselves: the control arm caught an assertion demanding exact
 float equality where only equality-to-rounding holds, and the withdrawn-figure guard was
 found matching its own source text.
 
 ```bash
-pytest          # 169 tests, a few seconds, including the mutation gate
+pytest          # 177 tests, a few seconds, including the mutation gate
 ```
 
 ## Related work
@@ -245,7 +248,8 @@ required input. This package fits no latent model and no classifier, and its lea
 takes no dependency graph: it is a function of how often two voters deviate from the plurality
 *with the same value*.
 
-**Classical.** Weighted majority under dependence: Nitzan & Paroush (1982, 1984), Shapley &
+**Classical.** Weighted majority and its behaviour under dependence: Nitzan & Paroush (1982,
+1984), Shapley &
 Grofman (1984); jury theorems with correlated votes: Ladha (1992), Boland (1989); ensemble
 diversity and the limits of majority voting: Kuncheva & Whitaker (2003), Kuncheva et al.,
 *Limits on the Majority Vote Accuracy* (2003), Hansen & Salamon (1990); discounting sources
@@ -268,10 +272,12 @@ panel. Worth reading before you invest in any panel at all: where a deterministi
 available, it beats every weighting scheme including this one.
 
 **Tools that build panels without measuring them.** `llm-judge-panel` runs multi-provider
-consensus with unanimous / majority / at-least-*m* rules and no correlation term at all;
+consensus with unanimous / majority / at-least-*m* rules and reports Fleiss' κ as inter-judge
+reliability, without letting it change any vote's weight;
 `llm-judge-kit` offers a typed judge primitive; `judgesync` aligns judges to human preferences.
 None of those three asks whether the votes being counted are independent. That is a statement
-about three packages read at source in September 2026, not about the field — a prior-art sweep
+about three packages read at source in September 2026 and again on 21 November 2026, not about
+the field — a prior-art sweep
 of this package's own claims initially missed all three, because the PyPI search sits behind a
 bot challenge and the sweep fell back to looking up names instead of descriptions. Treat every
 "no tool does X" here, including this one, as *not found by a search whose limits are on
@@ -300,8 +306,8 @@ without saying which artefact they live in.
 
 | | how |
 |---|---|
-| every number in this README | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run |
-| every behavioural claim | `pytest` — 169 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
+| every decimal figure in this README, the test count, the span of the absolute gap, the headline and the code examples | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run; figures from other people's work are listed there with their source |
+| the behaviour of the ten public functions, including their error paths | `pytest` — 177 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
 | that the tests can fail | `pytest tests/test_mutation.py` breaks the mechanism three ways and requires each to be caught |
 | that the bundled dataset is unaltered | its SHA-256 is in `NOTICE`, together with the one command that reaches a matching hash on Zenodo — the record page itself lists an MD5, under a different filename |
 
@@ -316,7 +322,7 @@ without saying which artefact they live in.
   establish it. It is kept because it says why a guard has the shape it has — read it as the
   reason for a design, not as evidence for a result. What the guards *do* is in the table
   above, and that part you can run.
-- The panel behind the bundled votes was run as the cited note describes. The note reports its own scope: 57 answerable items, 4 model families, one judge.
+- The panel behind the bundled votes was run as the cited note describes. The note reports its own scope: one cached panel, 57 answerable items, four model families, one judging rubric.
 
 ## Provenance
 

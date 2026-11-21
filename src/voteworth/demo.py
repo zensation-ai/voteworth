@@ -208,7 +208,7 @@ def main() -> None:
         tag = "INERT — weighting changed nothing" if inert else "changed the outcome"
         print(f"  {len(subset)}x {model:22} acc {pct(a_naive)} → {pct(a_w)}   {tag}")
     print("  → Provenance weighting needs voters from different sources. A same-model panel")
-    print("    cannot be repaired by reweighting; it has to be made diverse.")
+    print("    cannot be repaired by provenance weighting; it has to be made diverse.")
     print("  → Diversity is necessary, not sufficient: when cross-model pairs both break from")
     print(f"    the majority, they still pick the same answer {100 * cross_r:.1f}% of the time, and this")
     print(f"    panel of four families is worth {ne_raw:.1f} effective votes out of {n}.")

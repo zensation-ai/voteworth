@@ -49,7 +49,9 @@ _SWEEPING = re.compile(
 # "a test mentions the topic" — the assertion has to carry the sentence.
 CLAIMS: dict[str, str] = {
     # --- bound to a test -------------------------------------------------------
-    "cannot be repaired by reweighting": "test:test_same_model_panel_is_inert",
+    # Narrowed on 2026-11-21 from "by reweighting": the test binds provenance weights only, and
+    # from four voters of one model up the learned weight can move (test_docstring_contracts).
+    "cannot be repaired by provenance weighting": "test:test_same_model_panel_is_inert",
     "does nothing at all": "test:test_same_model_panel_is_inert",
     "every voter carries the same weight": "test:test_same_model_panel_is_inert",
     "An empty history yields uniform weights": "test:test_no_history_no_penalty",

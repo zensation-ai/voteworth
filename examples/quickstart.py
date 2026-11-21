@@ -7,7 +7,7 @@ to show three things in about a second:
   1. A plain majority over a panel with a correlated bloc scores WORSE than the panel's best
      single voter.
   2. Independence weighting recovers part of the gap and lowers the overstated confidence.
-  3. On a panel that is one model throughout, the same weighting does exactly nothing.
+  3. On a panel that is one model throughout, weighting by provenance does exactly nothing.
 
 The run itself lives in `voteworth.demo`, so that `python -m voteworth.demo`
 after a plain `pip install` shows the identical output. One implementation, two entry points —

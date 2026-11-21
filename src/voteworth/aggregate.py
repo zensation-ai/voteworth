@@ -18,10 +18,12 @@ down-weighted; a voter that errs in its own way keeps full weight.
 
 The structural limit, stated up front
 -------------------------------------
-If every voter in a panel is the same model, this repair does nothing. All voters receive
-the same weight, normalisation makes it uniform, and the weighted result is identical to
-the naive one. That is not a tuning problem — it is what the method can and cannot do, and
-`examples/quickstart.py` prints it as `INERT`. A panel that cannot disagree independently
+If every voter in a panel is the same model, the provenance weight (`structural_weights`)
+does nothing. All voters receive the same weight, normalisation makes it uniform, and the
+weighted result is identical to the naive one. That is not a tuning problem — it is what
+provenance can and cannot tell apart, and `examples/quickstart.py` prints it as `INERT`.
+The learned weight is not bound by this: from four voters of one model up, it can
+down-weight voters that co-deviate. A panel that cannot disagree independently
 cannot be repaired by reweighting; it has to be made diverse.
 
 Everything here is deterministic, pure logic, and has no I/O and no LLM calls.
@@ -168,18 +170,21 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
 
     n_eff = m / (1 + (m-1) * r̄), where r̄ is the mean pairwise agreement rate. A panel of ten
     voters that all say the same thing is worth one; a panel of ten that never covary is worth
-    ten. Comparable to the figure reported for LLM judge panels in the literature.
+    ten. Figures reported for LLM judge panels in the literature rest on other correlations
+    (Kohli's about 2.2 for nine judges uses the phi of error indicators against gold labels)
+    and are not on the same scale.
 
     `mode` selects what "agreeing" means:
       "raw"   — the two voters cast the same vote (no labels needed; the default).
       "error" — the two voters are both right or both wrong. Needs `truth`, so pass a history
-                of booleans instead; see the demo.
+                of booleans instead (True where the voter was right).
 
     **Read this together with the weights.** The two numbers answer different questions and
     disagree in exactly the case this package is weakest at: when one bloc holds the plurality,
-    n_eff keeps falling while the learned weights go flat, because a bloc that *is* the
-    plurality never deviates from it and so never registers as correlated. A low n_eff beside
-    uniform weights is the signature of that blind spot — see `bloc_share`.
+    n_eff keeps falling while the bloc's learned weight returns to full, because a bloc that
+    *is* the plurality never deviates from it and so never registers as correlated. A low
+    n_eff beside a largest group at full weight is the signature of that blind spot — see
+    `bloc_share`.
 
     Caveat, stated because it is easy to over-read: Kish's formula is defined for an
     intraclass correlation. Mean pairwise agreement is a stand-in for it, and a coarse one for
@@ -232,7 +237,7 @@ def bloc_share(sources) -> float:
 def agreement_confidence(votes, weights=None) -> float:
     """The share of the (weighted) vote mass that went to the winner.
 
-    This is the quantity most panels report as "confidence". It is returned here so that the
+    This is the quantity panels often report as "confidence". It is returned here so that the
     gap between it and measured accuracy can be computed — see `examples/quickstart.py`.
     Reporting it without that gap is exactly the failure this package is about.
     """
@@ -249,14 +254,15 @@ def agreement_confidence(votes, weights=None) -> float:
 def cluster_answers(answers, embedder, thresh: float = 0.78):
     """Free-text answers → equivalence-class ids (the discrete votes), by embedding cosine.
 
-    Greedy single-link: each answer joins the first cluster whose centroid it matches at
-    cosine ≥ `thresh`, else starts a new one. Null answers get id -1. Deterministic in input
+    Greedy, in one pass: each answer is compared with the first member of every cluster so far
+    and joins the most similar one if the cosine is ≥ `thresh`; otherwise it starts a new
+    cluster. Null answers get id -1. Deterministic in input
     order.
 
     `embedder` is any object with `.encode(list[str], normalize_embeddings=True) -> ndarray`.
 
     Caution, learned the hard way: for short *factual* answers, embedding cosine conflates
-    distinct facts — two different dates sit above any paraphrase threshold. Use
+    distinct facts — two different dates can sit above a typical paraphrase threshold. Use
     `cluster_answers_by_fn` there.
 
     Returns (labels, reps): the cluster id per answer, and one representative string per
@@ -296,8 +302,8 @@ def cluster_answers_by_fn(answers, equal_fn):
     Identical normalised strings short-circuit to equal *without* calling it. Null answers get
     id -1. Deterministic in input order.
 
-    This is the accurate path for short factual answers, where embedding cosine merges
-    distinct facts.
+    This is the more accurate path for short factual answers, where embedding cosine can
+    merge distinct facts.
 
     Returns (labels, reps).
     """

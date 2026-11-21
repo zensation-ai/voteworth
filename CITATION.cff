@@ -17,7 +17,8 @@ abstract: >
   share their error modes, so a correlated bloc can win a plain majority while being wrong and
   have its agreement read as confidence. The package learns a per-voter independence weight
   from a vote history, or derives one from provenance labels when no history exists. It states
-  its own boundary: on a panel that is one model throughout, the correction is provably inert.
+  its own boundary: on a panel that is one model throughout, the provenance correction is
+  provably inert.
 keywords:
   - llm-as-judge
   - self-consistency
