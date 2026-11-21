@@ -191,7 +191,7 @@ def main() -> None:
     for label, pred in (
         ("both deviate from plurality (used here)", _codeviate),
         ("both wrong", _both_wrong),
-        ("raw agreement, all items", _raw),
+        ("raw agreement, all 57 items", _raw),
     ):
         sr, cr = _gap(pred)
         if sr is None or cr is None:
@@ -248,15 +248,15 @@ def main() -> None:
     naive_acc, naive_conf = evaluate(test_items, votes, truth, naive_weights(n))
     learn_acc, learn_conf = evaluate(test_items, votes, truth, learned)
 
-    print(f"\n=== 2. Does the panel beat its own best member? (held-out, n={len(test_items)}) ===")
+    print(f"\n=== 2. What does weighting change on held-out items? (n={len(test_items)}) ===")
     print(f"  {'':22} {'accuracy':>9} {'confidence':>11} {'overconfidence':>15}")
-    print(f"  {'best single voter':22} {pct(best_single):>9} {'—':>11} {'—':>15}")
+    print(f"  {'best voter, post hoc':22} {pct(best_single):>9} {'—':>11} {'—':>15}")
     print(f"  {'plain majority':22} {pct(naive_acc):>9} {pct(naive_conf):>11} "
           f"{pct(naive_conf - naive_acc):>15}")
     print(f"  {'independence-weighted':22} {pct(learn_acc):>9} {pct(learn_conf):>11} "
           f"{pct(learn_conf - learn_acc):>15}")
-    verdict = "below" if naive_acc < best_single else "at or above"
-    print(f"  → The plain majority lands {verdict} the best single voter.")
+    print("  → The best voter is picked on these same items, after the fact: no rival you could")
+    print("    have chosen in advance.")
     print(f"  → Weighting moves accuracy by {100 * (learn_acc - naive_acc):+.1f} pp and "
           f"overconfidence by {100 * ((learn_conf - learn_acc) - (naive_conf - naive_acc)):+.1f} pp.")
 

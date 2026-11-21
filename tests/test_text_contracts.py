@@ -15,9 +15,13 @@ the replaced one is not. A contract without a corrected sentence only forbids th
 
 Two control arms. The first plants the replaced sentence in a copy of today's text and requires
 the check to fail; it shows the check can fire, not that the replaced sentence was ever there.
-The second reads the replaced text out of the history (`git show`) and requires the check to
-fail on it for both reasons, so a replaced sentence that never stood anywhere is caught. It
-needs the history: it runs in a clone and in CI, and skips in an sdist or a shallow checkout.
+The second reads the released text out of the history (`git show v0.1.3:…`) and requires every
+contract whose sentence 0.1.3 carried to fail on it for both reasons, so a replaced sentence
+that never stood there is caught. It reads the tag, not a commit of the fix branch: a squash
+merge leaves the branch's commits unreachable, and an arm pointed at them would skip without a
+word (review of 2026-11-21). Sentences from the unreleased drafts of 0.1.4 are guarded by the
+first arm only. The second arm needs the history: it runs in a clone and in CI, and skips in an
+sdist or a shallow checkout.
 
 Sentences are compared as text, with whitespace and bold markers collapsed. A figure in a
 corrected sentence is checked where its value comes from (test_readme_claims.py,
@@ -45,19 +49,17 @@ _TESTS = _ROOT / "tests"
 # (see test_docstring_claims.py).
 _AGGREGATE_MODULE = importlib.import_module("voteworth.aggregate")
 
-# Where a replaced sentence stood. 0.1.3 is the commit tagged v0.1.3; a14522e is the first 0.1.4
-# draft, reviewed on 2026-11-21 and never released, which is on the fix branch only.
-_REVISIONS = {
-    "0.1.3": "5ffd923fd08307155fd06108706b9a5ff1684e95",
-    "a14522e": "a14522ea63cb215a3949ea0535c1a8e1076fb900",
-}
+# Where a replaced sentence stood: the release 0.1.3, read from its tag, or one of the reviewed
+# drafts of 0.1.4 that were never released (first arm only).
+_RELEASE_TAG = "v0.1.3"
+_REPLACED = {"0.1.3", "draft a14522e", "draft b3a3703"}
 
 
 class Contract(NamedTuple):
     where: str  # a file, "voteworth" or "voteworth.aggregate" (module docstrings), or "name()"
     required: Optional[str]  # the corrected sentence, or the part of it that carries the correction
     old: str  # the sentence it replaced, as it stood
-    replaced: str  # where it stood: a key of _REVISIONS
+    replaced: str  # where it stood: "0.1.3", or the draft of 0.1.4 that carried it
     binds: tuple  # the tests that assert the behaviour the sentence describes
 
 
@@ -66,7 +68,7 @@ TEXT_CONTRACTS = [
     Contract("README.md", "effective votes by raw agreement", "Worth 1.48 independent votes.", "0.1.3",
              ("test_n_eff_figures_in_the_prose_are_the_printed_ones",)),
     Contract("README.md", "effective votes by raw agreement",
-             "independent voters as accurate would be worth", "a14522e",
+             "independent voters as accurate would be worth", "draft a14522e",
              ("test_n_eff_figures_in_the_prose_are_the_printed_ones",)),
     Contract("README.md",
              "raw agreement rises with differences in difficulty between items, with shared errors, "
@@ -75,12 +77,12 @@ TEXT_CONTRACTS = [
              ("test_raw_n_eff_rises_with_accuracy_alone",
               "test_unequal_items_lower_n_eff_with_every_weight_at_full")),
     Contract("README.md", "and never give the same wrong answer also score",
-             "are each right 80% of the time also score 1.48", "a14522e",
+             "are each right 80% of the time also score 1.48", "draft a14522e",
              ("test_raw_n_eff_rises_with_accuracy_alone",
               "test_two_answer_options_put_every_weight_at_one_tenth")),
     Contract("README.md", "n_eff alone cannot tell differences in item difficulty from shared errors",
              "n_eff therefore says something about dependence only next to what independent voters",
-             "a14522e",
+             "draft a14522e",
              ("test_unequal_items_lower_n_eff_with_every_weight_at_full",
               "test_unequal_items_and_voters_right_together_both_raise_the_all_right_count")),
     Contract("README.md", "A lower n_eff does not mark the more dependent panel.",
@@ -88,7 +90,7 @@ TEXT_CONTRACTS = [
              ("test_n_eff_order_does_not_follow_dependence",
               "test_mixed_panel_scores_above_an_independent_accurate_one")),
     Contract("README.md", "pick the same answer more often than voters from different models",
-             "Voters from the same model share their wrong answers", "a14522e",
+             "Voters from the same model share their wrong answers", "draft a14522e",
              ("test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives",)),
     Contract("README.md", "adding voters from the same model buys less than the count suggests.",
              "Adding voters from the same pool buys far less than the count suggests.", "0.1.3",
@@ -115,19 +117,23 @@ TEXT_CONTRACTS = [
              "while the weights go flat.", "0.1.3",
              ("test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not",
               "test_effective_votes_falls_as_the_bloc_grows")),
-    Contract("README.md", "The signature is a group of voters at full weight while the others are down-weighted",
+    Contract("README.md",
+             "The signature is a group of voters that vote together, kept at full weight while the "
+             "others are down-weighted.",
              "A low n_eff beside uniform weights is the signature.", "0.1.3",
              ("test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not",
               "test_unequal_items_lower_n_eff_with_every_weight_at_full",
               "test_two_answer_options_put_every_weight_at_one_tenth")),
-    Contract("README.md", "The signature is a group of voters at full weight while the others are down-weighted",
-             "provided n_eff is also low against independent voters at the same accuracy", "a14522e",
+    Contract("README.md",
+             "The signature is a group of voters that vote together, kept at full weight while the "
+             "others are down-weighted.",
+             "provided n_eff is also low against independent voters at the same accuracy", "draft a14522e",
              ("test_unequal_items_lower_n_eff_with_every_weight_at_full",)),
     Contract("README.md", "The demo prints n_eff and the largest provenance share and warns from 50% up",
              "The demo prints both and warns above 50%.", "0.1.3",
              ("test_demo_warns_at_exactly_half", "test_demo_stays_quiet_below_the_threshold")),
     Contract("README.md", "The demo prints n_eff and the largest provenance share and warns from 50% up",
-             "The demo prints all three and warns from 50% up.", "a14522e",
+             "The demo prints all three and warns from 50% up.", "draft a14522e",
              ("test_demo_warns_at_exactly_half",)),
     # ── README: what the package does not do ──
     Contract("README.md", "Diversity is not shown to be enough.", "Diversity is necessary, not sufficient.",
@@ -139,7 +145,7 @@ TEXT_CONTRACTS = [
              "both break from the majority, do they pick the same answer?", "0.1.3",
              ("test_readme_output_block_is_a_verbatim_run",)),
     Contract("src/voteworth/demo.py", "n_eff alone cannot tell them apart.",
-             "for independent voters as accurate.", "a14522e",
+             "for independent voters as accurate.", "draft a14522e",
              ("test_unequal_items_lower_n_eff_with_every_weight_at_full",)),
     Contract("src/voteworth/demo.py", None, "panel of four families is worth", "0.1.3",
              ("test_readme_output_block_is_a_verbatim_run",)),
@@ -172,7 +178,7 @@ TEXT_CONTRACTS = [
     Contract("voteworth.aggregate", "`python -m voteworth.demo` prints it as `INERT`",
              "`examples/quickstart.py` prints it as `INERT`", "0.1.3",
              ("test_advertised_module_command_runs",)),
-    Contract("voteworth.aggregate", "A voter that deviates with the same value as others is redundant",
+    Contract("voteworth.aggregate", "A voter that deviates with the same value as others is treated as redundant",
              "A voter that shares its errors with others is redundant", "0.1.3",
              ("test_independence_weights_downweight_correlated_bloc",)),
     # ── function docstrings ──
@@ -195,27 +201,27 @@ TEXT_CONTRACTS = [
     Contract("effective_votes()",
              "Agreement rises with differences in difficulty between items, with shared errors, and with "
              "accuracy once voters are right more often than not.",
-             "Agreement rises with accuracy as well as with dependence.", "a14522e",
+             "Agreement rises with accuracy as well as with dependence.", "draft a14522e",
              ("test_raw_n_eff_rises_with_accuracy_alone",
               "test_unequal_items_lower_n_eff_with_every_weight_at_full")),
     Contract("effective_votes()", "and never give the same wrong answer agree on about",
-             "each right 80% of the time agree on about 64% of pairs", "a14522e",
+             "each right 80% of the time agree on about 64% of pairs", "draft a14522e",
              ("test_raw_n_eff_rises_with_accuracy_alone",)),
     Contract("effective_votes()", "and n_eff alone cannot settle it",
-             "Read n_eff next to what independent voters with the same accuracies would score", "a14522e",
+             "Read n_eff next to what independent voters with the same accuracies would score", "draft a14522e",
              ("test_unequal_items_lower_n_eff_with_every_weight_at_full",)),
     Contract("effective_votes()", "A lower n_eff does not mark the more dependent panel.",
              "The ordering carries; the second decimal does not.", "0.1.3",
              ("test_n_eff_order_does_not_follow_dependence",)),
     Contract("effective_votes()",
-             "The signature of that blind spot is a group of voters at full weight while the others are "
-             "down-weighted",
+             "The signature of that blind spot is a group of voters that vote together, kept at full "
+             "weight while the others are down-weighted",
              "A low n_eff beside uniform weights is the signature of that blind spot", "0.1.3",
              ("test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not",)),
     Contract("effective_votes()",
-             "The signature of that blind spot is a group of voters at full weight while the others are "
-             "down-weighted",
-             "provided n_eff is also low against independent voters at the same", "a14522e",
+             "The signature of that blind spot is a group of voters that vote together, kept at full "
+             "weight while the others are down-weighted",
+             "provided n_eff is also low against independent voters at the same", "draft a14522e",
              ("test_unequal_items_lower_n_eff_with_every_weight_at_full",)),
     Contract("effective_votes()", "it carries the voters' accuracy and the spread of item difficulty with it.",
              "and a coarse one for categorical labels.", "0.1.3",
@@ -224,7 +230,7 @@ TEXT_CONTRACTS = [
              "(right/wrong) instead of votes. Any other value of `mode` raises", "0.1.3",
              ("test_error_mode_rises_with_accuracy_too",)),
     Contract("effective_votes()", '"error" rises with accuracy too once voters are right more often than not',
-             '"error" rises with accuracy too: two independent voters', "a14522e",
+             '"error" rises with accuracy too: two independent voters', "draft a14522e",
              ("test_error_mode_rises_with_accuracy_too",)),
     Contract("bloc_share()",
              "From 0.5 up one group can carry the plurality on its own; at exactly half it wins every "
@@ -250,14 +256,55 @@ TEXT_CONTRACTS = [
              ("test_pairwise_coerror_signal",)),
     Contract("CITATION.cff", "a bloc that votes in lockstep and holds the plurality never deviates from it",
              "It states its own boundary:", "0.1.3", ("test_dominant_bloc_is_invisible_to_the_weights",)),
+    # ── after the fourth review: the post-hoc best voter, conditions, terms of earlier drafts ──
+    Contract("README.md", None, "points below the panel's best single member", "0.1.3",
+             ("test_the_demo_names_its_best_voter_as_picked_after_the_fact",)),
+    Contract("README.md", None, "voting was the wrong move, and the tool says so", "0.1.3",
+             ("test_the_demo_names_its_best_voter_as_picked_after_the_fact",)),
+    Contract("README.md", "Read the −7.2 pp above as what happened on these 29 items, not as a direction",
+             "Read the −7.2 pp above as a direction, not a size.", "0.1.3",
+             ("test_readme_prose_numbers_are_produced",)),
+    Contract("README.md", "blinds the co-deviation detector", "blinds the shared-error detector", "0.1.3",
+             ("test_suite_detects_mutation",)),
+    Contract("README.md", "The bundled matrix holds 80 items, 57 of them answerable",
+             "The bundled matrix is 57 answerable items", "0.1.3", ("test_the_judge_sentence_matches_the_data",)),
+    Contract("README.md", "raw agreement over all 57 items", "| raw agreement over all items |", "0.1.3",
+             ("test_gap_span_and_ratio_factor_match_a_live_run",)),
+    Contract("README.md", "On equally hard items, ten independent voters",
+             "right more often than not. Ten independent voters that are each right 80%",
+             "draft b3a3703", ("test_raw_n_eff_rises_with_accuracy_alone",)),
+    Contract("src/voteworth/demo.py", None, "Does the panel beat its own best member?", "0.1.3",
+             ("test_the_demo_names_its_best_voter_as_picked_after_the_fact",)),
+    Contract("src/voteworth/demo.py", None, "→ The plain majority lands", "0.1.3",
+             ("test_the_demo_names_its_best_voter_as_picked_after_the_fact",)),
+    Contract("src/voteworth/demo.py", '"raw agreement, all 57 items"', '"raw agreement, all items"',
+             "0.1.3", ("test_gap_span_and_ratio_factor_match_a_live_run",)),
+    Contract("examples/quickstart.py", "on 29 items that is what happened here, not a rule",
+             "scores WORSE than the panel's best", "0.1.3",
+             ("test_the_demo_names_its_best_voter_as_picked_after_the_fact",)),
+    Contract("voteworth.aggregate", "They often are not.",
+             "That silently assumes the voters are independent. They are not.", "0.1.3",
+             ("test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives",)),
+    Contract("voteworth.aggregate", "wins the vote while being wrong", "wins the majority while being wrong",
+             "0.1.3", ("test_weighted_beats_naive_on_detectable_bloc",)),
+    Contract("voteworth.aggregate",
+             "measures how often two voters that both break from the plurality pick the same answer",
+             "This module measures that correlation and corrects for it.", "0.1.3",
+             ("test_pairwise_coerror_signal",)),
+    Contract("effective_votes()", "voters that all say the same thing scores one",
+             "voters that all say the same thing is worth one", "0.1.3", ("test_effective_votes_bounds",)),
+    Contract("effective_votes()", "On equally hard items, ten independent", "Ten independent voters that are each",
+             "draft b3a3703", ("test_raw_n_eff_rises_with_accuracy_alone",)),
+    Contract("CITATION.cff", "corrects the vote for voters that do", "corrects the vote for correlated voters",
+             "0.1.3", ("test_pairwise_coerror_signal",)),
 ]
 
-# The places the reviews named: the README, the module and package docstrings, five function
-# docstrings, the demo, and the two surfaces PyPI and GitHub's citation box show.
+# The places the reviews named: the README, the demo and the quickstart, the module and package
+# docstrings, six function docstrings, and the two surfaces PyPI and GitHub's citation box show.
 _PLACES = {
     "README.md", "src/voteworth/demo.py", "voteworth", "voteworth.aggregate", "cluster_answers()",
     "learn_independence_weights()", "pairwise_coerror()", "effective_votes()", "bloc_share()",
-    "agreement_confidence()", "pyproject.toml", "CITATION.cff",
+    "agreement_confidence()", "pyproject.toml", "CITATION.cff", "examples/quickstart.py",
 }
 
 
@@ -333,13 +380,13 @@ def _text_at(revision: str, where: str) -> Optional[str]:
     return shown.stdout
 
 
-@pytest.mark.parametrize("contract", TEXT_CONTRACTS, ids=_label)
-def test_the_contract_fires_on_the_text_it_replaced(contract):
-    """Control arm two: the text as it stood where the replaced sentence came from must fail the
-    contract for both reasons, or, for a contract that only forbids, carry the forbidden sentence."""
-    text = _text_at(_REVISIONS[contract.replaced], contract.where)
+@pytest.mark.parametrize("contract", [c for c in TEXT_CONTRACTS if c.replaced == "0.1.3"], ids=_label)
+def test_the_contract_fires_on_the_released_text(contract):
+    """Control arm two: the text as released in 0.1.3 must fail the contract for both reasons, or,
+    for a contract that only forbids, carry the forbidden sentence."""
+    text = _text_at(_RELEASE_TAG, contract.where)
     if text is None:
-        pytest.skip(f"{contract.replaced} is not in this checkout's history (no .git, or a shallow clone)")
+        pytest.skip(f"{_RELEASE_TAG} is not in this checkout (no .git, no tags, or a shallow clone)")
     problems = _contract_problems(text, contract)
     assert len(problems) == (1 if contract.required is None else 2), problems
 
@@ -354,7 +401,7 @@ def test_every_contract_names_tests_that_exist():
     missing = {label: tests for label, tests in missing.items() if tests}
     assert not missing, f"contracts bound to tests that do not exist: {missing}"
     assert all(c.binds for c in TEXT_CONTRACTS), "a contract binds no test"
-    assert all(c.replaced in _REVISIONS for c in TEXT_CONTRACTS), "a contract names an unknown revision"
+    assert all(c.replaced in _REPLACED for c in TEXT_CONTRACTS), "a contract names an unknown source"
 
 
 def test_the_contracts_cover_every_place_the_reviews_named():

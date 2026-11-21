@@ -3,18 +3,20 @@
 The problem this solves
 ----------------------
 When several LLM writers, judges or samples vote on an answer, the usual move is a plain
-majority: one voter, one vote. That silently assumes the voters are independent. They are
-not. Voters drawn from the same model — or the same model sampled several times — share
+majority: one voter, one vote. That silently assumes the voters are independent. They often
+are not. Voters drawn from the same model — or the same model sampled several times — share
 their *error modes*: when they are wrong, they tend to be wrong in the same way. A
-correlated bloc then wins the majority while being wrong, and the agreement among its
+correlated bloc then wins the vote while being wrong, and the agreement among its
 members is read as confidence.
 
-This module measures how often voters deviate together, and corrects the vote for it.
+This module measures how often two voters that both break from the plurality pick the same
+answer, and corrects the vote for it.
 
 `learn_independence_weights` looks at a vote history and, for each pair of voters, asks:
 of the items where both deviated from the panel's plurality, how often did they deviate
-with the *same* value? A voter that deviates with the same value as others is redundant and
-gets down-weighted; a voter that deviates in its own way keeps full weight.
+with the *same* value? A voter that deviates with the same value as others is treated as
+redundant and gets down-weighted; a voter that deviates in its own way keeps full weight. With
+two answer options every deviation has the same value, so independent voters are treated so too.
 
 The structural limit, stated up front
 -------------------------------------
@@ -170,15 +172,16 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
     """Kish's effective sample size of a panel, from its mean pairwise agreement.
 
     n_eff = m / (1 + (m-1) * r̄), where r̄ is the mean pairwise agreement rate. A panel of ten
-    voters that all say the same thing is worth one; a panel of ten that never cast the same
-    vote is worth ten. Figures reported for LLM judge panels in the literature rest on other
+    voters that all say the same thing scores one; a panel of ten that never cast the same
+    vote scores ten. Figures reported for LLM judge panels in the literature rest on other
     correlations (Kohli's about 2.2 for nine judges uses the phi of error indicators against
     gold labels) and are not on the same scale.
 
     Agreement rises with differences in difficulty between items, with shared errors, and with
-    accuracy once voters are right more often than not. Ten independent voters that are each
-    right 80% of the time and never give the same wrong answer agree on about 64% of pairs and
-    score about 1.48; with two answer options they agree on 68% and score about 1.40. What
+    accuracy once voters are right more often than not. On equally hard items, ten independent
+    voters that are each right 80% of the time and never give the same wrong answer agree on
+    about 64% of pairs and score about 1.48; with two answer options they agree on 68% and score
+    about 1.40. What
     independent voters would score depends on what is assumed about the items, and n_eff alone
     cannot settle it: `python -m voteworth.demo` prints two such figures for the bundled panel,
     and how many items all ten voters got right, against how many independent voters on equally
@@ -193,8 +196,10 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
     disagree in exactly the case this package is weakest at: when one bloc holds the plurality,
     n_eff keeps falling while the bloc's learned weight returns to full, because a bloc that
     *is* the plurality never deviates from it and so never registers as correlated. The
-    signature of that blind spot is a group of voters at full weight while the others are
-    down-weighted — see `bloc_share`. A low n_eff comes with it but is no evidence on its own:
+    signature of that blind spot is a group of voters that vote together, kept at full weight
+    while the others are down-weighted — see `bloc_share`; if the group at full weight is the
+    independent one, the weighting is doing its job. A low n_eff comes with it but is no
+    evidence on its own:
     accurate voters and unequal items lower n_eff with every weight at full when no two voters
     give the same wrong answer, and with few answer options independent voters score low with
     every weight down.

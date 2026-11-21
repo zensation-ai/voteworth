@@ -180,16 +180,16 @@ def _mean_pair_agreement(history, n):
 # no two voters ever give the same wrong answer (review of 2026-11-21). With two answer options
 # every wrong answer is the same one, and every weight drops to 0.10.
 _README_COUNTEREXAMPLE = re.compile(
-    r"[Tt]en independent voters that are each right (\d+)% of the time and never give the same wrong "
-    r"answer also score (\d\.\d\d), with every learned weight at (\d\.\d)"
+    r"On equally hard items, ten independent voters that are each right (\d+)% of the time and never "
+    r"give the same wrong answer also score (\d\.\d\d), with every learned weight at (\d\.\d)"
 )
 _README_TWO_OPTIONS = re.compile(
     r"With two answer options, where every wrong answer is the same one, they score (\d\.\d\d), and "
     r"every weight drops to (\d\.\d\d)"
 )
 _DOC_COUNTEREXAMPLE = re.compile(
-    r"Ten independent voters that are each right (\d+)% of the time and never give the same wrong "
-    r"answer agree on about (\d+)% of pairs and score about (\d\.\d\d)"
+    r"On equally hard items, ten independent voters that are each right (\d+)% of the time and never "
+    r"give the same wrong answer agree on about (\d+)% of pairs and score about (\d\.\d\d)"
 )
 _DOC_TWO_OPTIONS = re.compile(r"with two answer options they agree on (\d+)% and score about (\d\.\d\d)")
 _DOC_ERROR_MODE = re.compile(
@@ -461,16 +461,13 @@ def test_the_demo_counts_the_items_all_voters_got_right():
 #
 # The README says that same-model pairs agree beyond what the items produce, and that this needs
 # no labels. Shuffling the votes within each item keeps every item's answers and drops who gave
-# them, so under the shuffle no pair kind can be ahead of the other except by chance. The figures
-# and the number of shuffles are read out of the README.
+# them, so under the shuffle no pair kind can be ahead of the other except by chance. The number
+# of shuffles and both gaps are read out of the README.
 
 _SHUFFLE_SENTENCE = re.compile(
-    r"fewer than one in a thousand such shuffles put same-model pairs as far ahead, in that rate "
-    r"\(\+(\d\.\d{3})\) or in raw agreement \(\+(\d\.\d{3})\)"
+    r"in ([\d,]+) such shuffles same-model pairs came out as far ahead less than once in a "
+    r"thousand, in that rate \(\+(\d\.\d{3})\) or in raw agreement \(\+(\d\.\d{3})\)"
 )
-# Two thousand shuffles, so that "fewer than one in a thousand" means at most one of them. The
-# third review counted none in 2,000 and one in 5,000 with its own seed; this seed gives one.
-_SHUFFLES = 2000
 
 
 def _pair_kinds(n):
@@ -483,29 +480,67 @@ def _contrasts(rows, n, same, cross):
     rates = pairwise_coerror(rows, n)
     codev = lambda ps: statistics.mean(rates[i][j] for i, j in ps if rates[i][j] == rates[i][j])
     raw = lambda ps: statistics.mean(sum(r[i] == r[j] for r in rows) / len(rows) for i, j in ps)
-    return codev(same) - codev(cross), raw(same) - raw(cross), codev(cross)
+    return codev(same) - codev(cross), raw(same) - raw(cross)
+
+
+def _shuffle_problems(rows, n, shuffles, seed=20261121):
+    """What fails in 'same-model pairs come out as far ahead less than once in a thousand
+    shuffles': each gap that shuffling within items reaches as often as that or more."""
+    same, cross = _pair_kinds(n)
+    observed = _contrasts(rows, n, same, cross)
+    rng = random.Random(seed)
+    reached = [0, 0]
+    for _ in range(shuffles):
+        shuffled = [rng.sample(row, len(row)) for row in rows]
+        for k, gap in enumerate(_contrasts(shuffled, n, same, cross)):
+            reached[k] += gap >= observed[k]
+    names = ("co-deviation gap", "raw agreement gap")
+    return [f"{names[k]} {observed[k]:+.3f} reached in {reached[k]} of {shuffles} shuffles"
+            for k in range(2) if reached[k] / shuffles >= 0.001]
 
 
 def test_same_model_pairs_agree_beyond_what_shuffling_within_items_gives():
     match = _SHUFFLE_SENTENCE.search(_flat(_README.read_text()))
     assert match, "the README no longer states the shuffle in the shape read here"
+    shuffles = int(match.group(1).replace(",", ""))
     rows, _, n = _bundled()
     same, cross = _pair_kinds(n)
-    codev_gap, raw_gap, cross_rate = _contrasts(rows, n, same, cross)
-    assert (f"{codev_gap:.3f}", f"{raw_gap:.3f}") == (match.group(1), match.group(2))
-    rng = random.Random(20261121)
-    reached = [0, 0]
-    null_codev, null_cross = [], []
-    for _ in range(_SHUFFLES):
-        shuffled = [rng.sample(row, len(row)) for row in rows]
-        c, r, x = _contrasts(shuffled, n, same, cross)
-        reached[0] += c >= codev_gap
-        reached[1] += r >= raw_gap
-        null_codev.append(c)
-        null_cross.append(x)
-    assert all(count / _SHUFFLES < 0.001 for count in reached), reached
-    assert abs(statistics.mean(null_codev)) < 0.01, statistics.mean(null_codev)
-    # "Diversity is not shown to be enough": cross-model pairs pick the same answer no more often
-    # than the same votes shuffled within each item would.
-    assert cross_rate < statistics.mean(null_cross), (cross_rate, statistics.mean(null_cross))
-    assert "no more often than the same votes shuffled within each item would" in _flat(_README.read_text())
+    codev_gap, raw_gap = _contrasts(rows, n, same, cross)
+    assert (f"{codev_gap:.3f}", f"{raw_gap:.3f}") == (match.group(2), match.group(3))
+    problems = _shuffle_problems(rows, n, shuffles)
+    assert not problems, problems
+
+
+def test_the_shuffle_check_can_fail():
+    """Control arm: on a panel with no provenance effect (the bundled votes, shuffled within each
+    item once) the same check must fail, for both gaps."""
+    rows, _, n = _bundled()
+    rng = random.Random(1)
+    without_effect = [rng.sample(row, len(row)) for row in rows]
+    assert len(_shuffle_problems(without_effect, n, shuffles=400)) == 2
+
+
+def test_the_demo_names_its_best_voter_as_picked_after_the_fact():
+    """The demo's best voter is the best on the held-out items themselves, so it is picked after
+    the fact, and the demo says so. The voter that is best on the learning half scores below the
+    plain majority on the held-out half (review of 2026-11-21), which is why no comparison with the
+    best voter is drawn any more."""
+    data = json.loads(voteworth.demo.DATA.read_text())
+    votes, truth, n = data["votesByItem"], data["correctGroupByItem"], len(data["panel"])
+    answerable = [t for t in range(len(votes)) if truth[t] >= 0]
+    history = [t for t in answerable if t % 2 == 0]
+    held_out = [t for t in answerable if t % 2 == 1]
+
+    def accuracy(i, items):
+        return sum(votes[t][i] == truth[t] for t in items) / len(items)
+
+    plain = sum(aggregate(votes[t], naive_weights(n)) == truth[t] for t in held_out) / len(held_out)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        voteworth.demo.main()
+    row = re.search(r"best voter, post hoc\s+(\d+\.\d)%", buf.getvalue())
+    assert row, "the demo no longer prints the best voter as picked post hoc"
+    assert float(row.group(1)) == round(100 * max(accuracy(i, held_out) for i in range(n)), 1)
+    assert "picked on these same items, after the fact" in _flat(buf.getvalue())
+    best_on_history = max(range(n), key=lambda i: accuracy(i, history))
+    assert accuracy(best_on_history, held_out) < plain, (best_on_history, accuracy(best_on_history, held_out), plain)

@@ -220,11 +220,12 @@ FOREIGN_FIGURES = {
 
 # ── figures the README derives from printed ones ─────────────────────────────
 #
-# The README states three figures that the demo does not print but that follow from figures it
-# does: the gap between the plain majority and the best single voter, the ratio of the
-# same-model to the cross-model share, and the gap of the pair means. Each is recomputed here
-# from the printed run, so that a change which moves a printed figure moves the derived one
-# with it, and each is checked in the sentence that states it.
+# The README states figures that the demo does not print but that follow from figures it does:
+# the ratio of the same-model to the cross-model share, and the gap of the pair means. Each is
+# recomputed here from the printed run, so that a change which moves a printed figure moves the
+# derived one with it, and each is checked in the sentence that states it. Until the fourth
+# review of 0.1.4 (2026-11-21) the README also derived the plain majority's distance to the best
+# single voter; that voter is picked after the fact on the same items, and the comparison is gone.
 
 
 def _printed(pattern: str, demo_output: str) -> float:
@@ -235,14 +236,11 @@ def _printed(pattern: str, demo_output: str) -> float:
 
 def _derived_figures(demo_output: str) -> dict[str, float]:
     """The derived figures, from the printed run: what a reader of the output would compute."""
-    best = _printed(r"^  best single voter\s+(\d+\.\d)%", demo_output)
-    majority = _printed(r"^  plain majority\s+(\d+\.\d)%", demo_output)
     same = _printed(r"^  same model\s+(\d+\.\d)%", demo_output)
     cross = _printed(r"^  different model\s+(\d+\.\d)%", demo_output)
     pair_same = _printed(r"voter PAIRS \((\d\.\d{3}) / ", demo_output)
     pair_cross = _printed(r"voter PAIRS \(\d\.\d{3} / (\d\.\d{3})\)", demo_output)
     return {
-        "majority below the best voter, points": round(best - majority, 1),
         "same-model over cross-model share": round(same / cross, 1),
         "gap of the pair means": round(pair_same - pair_cross, 3),
     }
@@ -251,8 +249,6 @@ def _derived_figures(demo_output: str) -> dict[str, float]:
 # The sentence that states each derived figure. The gap of the pair means is stated in the span
 # sentence and checked there (test_gap_span_and_ratio_factor_match_a_live_run).
 _DERIVED_SENTENCES = {
-    "majority below the best voter, points":
-        r"plain majority scored (\d+\.\d) points below the panel's best single member",
     "same-model over cross-model share":
         r"pick the same answer (\d+\.\d)× as often as cross-model pairs",
 }
@@ -272,21 +268,19 @@ def _derived_problems(text: str, demo_output: str) -> list[str]:
 
 
 def test_derived_figures_are_recomputed_from_the_printed_run(readme, demo_output):
-    """The majority's gap to the best voter and the same-model ratio are arithmetic on printed
-    figures, so they are recomputed from the printed run rather than declared."""
+    """The same-model ratio is arithmetic on printed figures, so it is recomputed from the printed
+    run rather than declared."""
     problems = _derived_problems(readme, demo_output)
     assert not problems, "the README's derived figures do not follow from a live run:\n" + "\n".join(problems)
 
 
 def test_the_derived_figure_check_can_fire(demo_output):
-    """Control arm: a derived figure one point off must be reported, and only that one."""
+    """Control arm: a derived figure one off must be reported."""
     derived = _derived_figures(demo_output)
-    off = derived["majority below the best voter, points"] + 1
-    share = derived["same-model over cross-model share"]
-    planted = (f"The plain majority scored {off:.1f} points below the panel's best single member. "
-               f"Same-model pairs pick the same answer {share:.1f}× as often as cross-model pairs.")
+    off = derived["same-model over cross-model share"] + 1
+    planted = f"Same-model pairs pick the same answer {off:.1f}× as often as cross-model pairs."
     problems = _derived_problems(planted, demo_output)
-    assert len(problems) == 1 and problems[0].startswith("majority below the best voter"), problems
+    assert len(problems) == 1 and problems[0].startswith("same-model over cross-model share"), problems
     assert len(_derived_problems("no such sentences here", demo_output)) == len(_DERIVED_SENTENCES)
 
 
@@ -1007,9 +1001,17 @@ def test_the_n_eff_figure_check_can_fire(demo_output):
                 "**Ten LLM voters. Worth 1.48 effective votes; independent voters as accurate would be worth 2.03.**"):
         problems = _n_eff_figure_problems(f"{old}\n\n{body}", demo_output)
         assert len(problems) == 1 and problems[0].startswith("the headline is not"), problems
+    headline = f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n"
     swapped = body.replace(f"{distinct} if no", f"{per_item} if no").replace(f"{per_item} if wrong", f"{distinct} if wrong")
-    problems = _n_eff_figure_problems(f"**Ten LLM voters, {ne} effective votes by raw agreement.**\n\n{swapped}", demo_output)
+    problems = _n_eff_figure_problems(headline + swapped, demo_output)
     assert len(problems) == 1 and problems[0].startswith("the baselines sentence"), problems
+    # the first finding and the all-right sentence, each with one figure planted wrong
+    wrong_lead = body.replace(f"({ne_all} on all {total})", f"({ne} on all {total})")
+    problems = _n_eff_figure_problems(headline + wrong_lead, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the first finding"), problems
+    wrong_all_right = body.replace(f"would get {printed['expected'][0]}", "would get 9.99")
+    problems = _n_eff_figure_problems(headline + wrong_all_right, demo_output)
+    assert len(problems) == 1 and problems[0].startswith("the all-right sentence"), problems
 
 
 # The judge is part of the data's description, not of the votes: one model judged the ten

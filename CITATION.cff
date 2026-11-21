@@ -13,7 +13,7 @@ date-released: 2026-11-21
 repository-code: "https://github.com/zensation-ai/voteworth"
 abstract: >
   Measures how often two voters of an LLM voter or judge panel pick the same answer when both
-  break from the plurality, corrects the vote for correlated voters, and reports where it
+  break from the plurality, corrects the vote for voters that do, and reports where it
   cannot. Voters drawn from the same model share their error modes, so a correlated bloc can win
   a plain majority while being wrong and have its agreement read as confidence. The package
   learns a per-voter independence weight from a vote history, or derives one from provenance
