@@ -21,10 +21,10 @@ The structural limit, stated up front
 If every voter in a panel is the same model, the provenance weight (`structural_weights`)
 does nothing. All voters receive the same weight, normalisation makes it uniform, and the
 weighted result is identical to the naive one. That is not a tuning problem — it is what
-provenance can and cannot tell apart, and `examples/quickstart.py` prints it as `INERT`.
+provenance can and cannot tell apart, and `python -m voteworth.demo` prints it as `INERT`.
 The learned weight is not bound by this: from four voters of one model up, it can
-down-weight voters that co-deviate. A panel that cannot disagree independently
-cannot be repaired by reweighting; it has to be made diverse.
+down-weight voters that co-deviate. A panel that is one model throughout cannot be
+repaired by provenance weighting; it has to be made diverse.
 
 Everything here is deterministic, pure logic, and has no I/O and no LLM calls.
 """
@@ -166,13 +166,19 @@ def structural_weights(sources):
 
 
 def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
-    """How many independent voters your panel is actually worth (Kish's effective sample size).
+    """Kish's effective sample size of a panel, from its mean pairwise agreement.
 
     n_eff = m / (1 + (m-1) * r̄), where r̄ is the mean pairwise agreement rate. A panel of ten
-    voters that all say the same thing is worth one; a panel of ten that never covary is worth
-    ten. Figures reported for LLM judge panels in the literature rest on other correlations
-    (Kohli's about 2.2 for nine judges uses the phi of error indicators against gold labels)
-    and are not on the same scale.
+    voters that all say the same thing is worth one; a panel of ten that never cast the same
+    vote is worth ten. Figures reported for LLM judge panels in the literature rest on other
+    correlations (Kohli's about 2.2 for nine judges uses the phi of error indicators against
+    gold labels) and are not on the same scale.
+
+    Agreement rises with accuracy as well as with dependence. Ten independent voters that are
+    each right 80% of the time agree on about 64% of pairs and score about 1.48. Read n_eff
+    next to what independent voters with the same accuracies would score, which needs gold
+    labels (the demo computes it); between panels of different accuracy the order of n_eff
+    does not carry.
 
     `mode` selects what "agreeing" means:
       "raw"   — the two voters cast the same vote (no labels needed; the default).
@@ -184,15 +190,17 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
     n_eff keeps falling while the bloc's learned weight returns to full, because a bloc that
     *is* the plurality never deviates from it and so never registers as correlated. A low
     n_eff beside a largest group at full weight is the signature of that blind spot — see
-    `bloc_share`.
+    `bloc_share` — provided n_eff is also low against independent voters at the same
+    accuracy: accurate independent voters score low too, with every weight at full.
 
     Caveat, stated because it is easy to over-read: Kish's formula is defined for an
-    intraclass correlation. Mean pairwise agreement is a stand-in for it, and a coarse one for
-    categorical labels. **The ordering carries; the second decimal does not.**
+    intraclass correlation. Mean pairwise agreement is a stand-in for it, a coarse one for
+    categorical labels, and it carries the voters' accuracy with it.
 
     Both modes run the same computation; "error" only means the history holds booleans
-    (right/wrong) instead of votes. Any other value of `mode` raises, so that a typo cannot
-    pass silently.
+    (right/wrong) instead of votes. "error" rises with accuracy too: two independent voters
+    right 80% of the time are both right or both wrong 68% of the time. Any other value of
+    `mode` raises, so that a typo cannot pass silently.
     """
     if mode not in ("raw", "error"):
         raise ValueError(f'mode must be "raw" or "error", got {mode!r}')
@@ -219,9 +227,11 @@ def effective_votes(history, n_voters: int, mode: str = "raw") -> float:
 def bloc_share(sources) -> float:
     """The share of the panel held by its largest provenance group.
 
-    Above 0.5 one group can carry the plurality on its own, and the shared-error statistic this
-    package relies on stops seeing it: the bloc never deviates from a plurality it constitutes,
-    so it accrues no penalty, while the independent minority co-deviates and is down-weighted.
+    From 0.5 up one group can carry the plurality on its own; at exactly half it wins every tie
+    its answer wins on cluster id, as the first answer in input order does. The shared-error
+    statistic this package relies on stops seeing it: the bloc never deviates from a plurality
+    it constitutes, so it accrues no penalty, while the independent minority co-deviates and is
+    down-weighted.
     Measured on a synthetic 10-voter panel with a 6-voter bloc over twenty seeds, the weighted
     vote equals the naive one in every run and lands a median 17 points below the best single
     voter (test_dominant_bloc_is_invisible_to_the_weights).
@@ -238,7 +248,7 @@ def agreement_confidence(votes, weights=None) -> float:
     """The share of the (weighted) vote mass that went to the winner.
 
     This is the quantity panels often report as "confidence". It is returned here so that the
-    gap between it and measured accuracy can be computed — see `examples/quickstart.py`.
+    gap between it and measured accuracy can be computed — see `python -m voteworth.demo`.
     Reporting it without that gap is exactly the failure this package is about.
     """
     valid = [(v, w) for v, w in zip(votes, weights or naive_weights(len(votes))) if v != -1]
@@ -256,8 +266,7 @@ def cluster_answers(answers, embedder, thresh: float = 0.78):
 
     Greedy, in one pass: each answer is compared with the first member of every cluster so far
     and joins the most similar one if the cosine is ≥ `thresh`; otherwise it starts a new
-    cluster. Null answers get id -1. Deterministic in input
-    order.
+    cluster. Null answers get id -1. Deterministic in input order.
 
     `embedder` is any object with `.encode(list[str], normalize_embeddings=True) -> ndarray`.
 

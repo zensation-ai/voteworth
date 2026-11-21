@@ -59,6 +59,15 @@ CLAIMS: dict[str, str] = {
         "test:test_dominant_bloc_is_invisible_to_the_weights"
     ),
     "For every pair of voters": "test:test_independence_weights_downweight_correlated_bloc",
+    # Added on 2026-11-21 with the independence baseline: n_eff carries accuracy, and a bloc's
+    # full weight is the signature only next to that baseline (review of 0.1.4).
+    "with every learned weight at 1.0": "test:test_raw_n_eff_rises_with_accuracy_alone",
+    "once it never deviates from the plurality": (
+        "test:test_a_bloc_that_holds_the_plurality_keeps_full_weight_and_the_others_do_not"
+    ),
+    "accurate independent voters score low too, with every weight at full": (
+        "test:test_raw_n_eff_rises_with_accuracy_alone"
+    ),
     # --- unbindable, with the reason -------------------------------------------
     "A passing suite proves nothing on its own": (
         "not a claim about this code — it is the reason the mutation gate exists, and that "

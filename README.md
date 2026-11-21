@@ -1,6 +1,6 @@
 # voteworth
 
-**Ten LLM voters. Worth 1.48 independent votes.**
+**Ten LLM voters. Worth 1.48 effective votes; independent voters as accurate would be worth 2.03.**
 
 Your LLM panel agrees — that is not the same as it being right.
 
@@ -47,8 +47,9 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
     studies measure related but different quantities: match base, definition
     and averaging before comparing your panel to anyone else's number.
 
-  effective votes (Kish):     1.48 of 10
-  largest provenance share:   30%
+  effective votes (Kish, raw agreement):   1.48 of 10
+  independent voters, same accuracies:     2.03 (2.35 if no two wrong answers coincide)
+  largest provenance share:                30%
 
 === 2. Does the panel beat its own best member? (held-out, n=29) ===
                           accuracy  confidence  overconfidence
@@ -65,18 +66,25 @@ On the bundled vote matrix — ten real LLM voters over 80 items, no network, no
     cannot be repaired by provenance weighting; it has to be made diverse.
   → Diversity is necessary, not sufficient: when cross-model pairs both break from
     the majority, they still pick the same answer 18.5% of the time, and this
-    panel of four families is worth 1.5 effective votes out of 10.
+    panel of four families is worth 1.5 effective votes out of 10, against 2.0
+    for independent voters as accurate.
 ```
 
 Four things worth sitting with:
 
-**Ten voters were worth 1.48.** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, counts
-how many independent voters you actually have. The ordering carries; the second decimal does
-not: mean pairwise agreement is only a coarse stand-in for the intraclass correlation the formula
-expects. A nine-judge panel spanning seven model families is reported at about 2.2 (Kohli,
-preprint), but from the correlation of error indicators against gold labels rather than from raw
-agreement, so the two figures are not on one scale. Adding voters from the same pool buys far
-less than the count suggests.
+**Ten voters were worth 1.48 effective votes; independent voters as accurate would be worth
+2.03.** Kish's effective sample size, `n_eff = m/(1+(m−1)·r̄)`, here takes raw pairwise agreement
+as r̄. Raw agreement rises with accuracy as well as with dependence: ten independent voters that
+are each right 80% of the time also score 1.48, with every learned weight at 1.0. n_eff
+therefore says something about dependence only next to what independent voters with the same
+accuracies would score. The demo computes that from the gold labels: 2.03 when wrong answers
+fall as they do on each item, 2.35 when no two wrong answers coincide. Without labels n_eff
+cannot tell a redundant panel from an accurate one, and the order of panels with different
+accuracy does not carry. A nine-judge panel spanning seven model families is reported at about
+2.2 (Kohli, preprint), but from the correlation of error indicators against gold labels rather
+than from raw agreement, so the two figures are not on one scale. Voters from the same model
+share their wrong answers (42.8% against 18.5% for pairs that both break from the majority), so
+adding them buys less than the count suggests.
 
 **The plain majority scored 13.8 points below the panel's best single member**, and reported
 62.1% confidence while being right 44.8% of the time. Agreement was measuring redundancy, not
@@ -118,7 +126,7 @@ from voteworth import (
 history = [[0, 0, 1, 0], [1, 1, 0, 2], [0, 0, 2, 2], [1, 1, 1, -1]]   # past items, one cluster id per voter (-1 = abstained)
 sources = ["gpt-4o-mini", "gpt-4o-mini", "claude-haiku-4-5", "mistral-small-latest"]
 
-effective_votes(history, n_voters=4)   # how many independent voters you really have
+effective_votes(history, n_voters=4)   # Kish's n_eff from raw agreement, which rises with accuracy too
 bloc_share(sources)                    # ⚠ check this FIRST — see the boundary below
 pairwise_coerror(history, n_voters=4)  # which pairs share their errors (NaN = never co-deviated)
 
@@ -167,9 +175,11 @@ failure is in the suite (`test_dominant_bloc_is_invisible_to_the_weights`) — i
 documented boundary, not a bug awaiting a fix.
 
 `effective_votes` still sees it: n_eff keeps falling as the bloc grows (1.91 → 1.68 → 1.55 →
-1.26 for blocs of 3, 5, 6, 8 of 10) while the bloc's weight returns to full once it holds the
-plurality. **A low n_eff beside a largest group at full weight is the signature.** The demo
-prints both and warns above 50%.
+1.26 for blocs of 3, 5, 6, 8 of 10) while the bloc's weight returns to full once it never
+deviates from the plurality. **A low n_eff beside a largest group at full weight is the
+signature**, provided n_eff is also low against independent voters at the same accuracy:
+accurate independent voters score low too, with every weight at full. The demo prints all three
+and warns from 50% up.
 
 ## What this package does not do
 
@@ -196,15 +206,16 @@ the right reason. `tests/test_mutation.py` breaks the mechanism three ways — k
 weighting, reverses the documented tie-break, blinds the shared-error detector — and requires
 the suite to catch each one, with an unmutated control run so that failures cannot come from
 the harness itself. `tests/test_readme_claims.py` parses the decimal figures, the test count,
-the span sentence and the headline out of *this file* and checks them against a live run, so a
-stale README is a red test.
+the span sentence and the headline out of *this file* and checks them against a live run or the
+boundary experiment, so a stale README is a red test. Figures from cited work, including our own
+measurement note, are listed there with their source.
 
 Both have already paid for themselves: the control arm caught an assertion demanding exact
 float equality where only equality-to-rounding holds, and the withdrawn-figure guard was
 found matching its own source text.
 
 ```bash
-pytest          # 177 tests, a few seconds, including the mutation gate
+pytest          # 236 tests, under half a minute, including the mutation gate
 ```
 
 ## Related work
@@ -306,8 +317,8 @@ without saying which artefact they live in.
 
 | | how |
 |---|---|
-| every decimal figure in this README, the test count, the span of the absolute gap, the headline and the code examples | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run; figures from other people's work are listed there with their source |
-| the behaviour of the ten public functions, including their error paths | `pytest` — 177 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
+| every decimal figure in this README, the test count, the span of the absolute gap, the headline and the code examples | `pytest tests/test_readme_claims.py` parses them out of the file and compares them to a live run or to the boundary experiment; figures from cited work, including our own measurement note, are listed there with their source |
+| the behaviour of the ten public functions, including their error paths | `pytest` — 236 tests, including the boundary case where this method fails, and the panel shape that makes the demo's own warning fire |
 | that the tests can fail | `pytest tests/test_mutation.py` breaks the mechanism three ways and requires each to be caught |
 | that the bundled dataset is unaltered | its SHA-256 is in `NOTICE`, together with the one command that reaches a matching hash on Zenodo — the record page itself lists an MD5, under a different filename |
 

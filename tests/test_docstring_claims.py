@@ -16,14 +16,13 @@ import importlib
 import inspect
 import io
 import re
-import statistics
 from contextlib import redirect_stdout
 
 import pytest
 
 import voteworth
 import voteworth.demo
-from test_aggregate import boundary_run
+from test_aggregate import boundary_summary
 from test_readme_claims import FOREIGN_FIGURES, _decimals, _percentages
 
 # Not `voteworth.aggregate`: `voteworth/__init__.py` imports the function `aggregate`, and that
@@ -84,9 +83,11 @@ _POINTS_CLAIM = re.compile(r"(\d+) points below the best single voter")
 
 
 def _boundary_median_points() -> int:
-    """The median gap to the best single voter over the twenty seeds of the boundary test."""
-    gaps = [run["best"] - run["acc_w"] for run in (boundary_run(seed) for seed in range(20))]
-    return round(100 * statistics.median(gaps))
+    """The median gap to the best single voter over the twenty seeds of the boundary test.
+
+    From `boundary_summary`, the one computation the README check reads as well.
+    """
+    return boundary_summary()["median_points"]
 
 
 def _points_problems(doc: str, median_points: int) -> list[str]:

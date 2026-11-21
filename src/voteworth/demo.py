@@ -56,6 +56,40 @@ def evaluate(items, votes, truth, weights, subset=None):
     return hits / n, sum(confs) / n
 
 
+def _independent_baseline(rows, truth, n, distinct_wrong=False):
+    """The n_eff that independent voters with the same accuracies would reach (needs gold labels).
+
+    Raw agreement rises with accuracy as well as with dependence, so n_eff only speaks about
+    dependence next to this value. For voters i and j on an item they both answered, the
+    expected agreement of independent voters is p_i*p_j + (1-p_i)*(1-p_j)*S, where p is each
+    voter's accuracy and S the sum of the squared shares of the wrong answers on that item: the
+    chance that two independent wrong answers coincide, as often as wrong answers coincide
+    there. With `distinct_wrong`, S = 0: no two wrong answers ever coincide. Computed, not
+    sampled, so the demo prints the same figure on every run.
+    """
+    acc = []
+    for i in range(n):
+        cast = [(r[i], t) for r, t in zip(rows, truth) if r[i] != -1]
+        acc.append(sum(v == t for v, t in cast) / len(cast) if cast else 0.0)
+    shares = []
+    for r, t in zip(rows, truth):
+        wrong = [v for v in r if v != -1 and v != t]
+        if distinct_wrong or not wrong:
+            shares.append(0.0)
+        else:
+            shares.append(sum((wrong.count(w) / len(wrong)) ** 2 for w in set(wrong)))
+    rates = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            both = [s for r, s in zip(rows, shares) if r[i] != -1 and r[j] != -1]
+            if both:
+                rates.append(sum(acc[i] * acc[j] + (1 - acc[i]) * (1 - acc[j]) * s for s in both) / len(both))
+    if not rates:
+        return float(n)
+    r_bar = sum(rates) / len(rates)
+    return n / (1.0 + (n - 1) * r_bar)
+
+
 def main() -> None:
     d = json.loads(DATA.read_text())
     votes, truth, panel = d["votesByItem"], d["correctGroupByItem"], d["panel"]
@@ -164,13 +198,21 @@ def main() -> None:
     print("    and averaging before comparing your panel to anyone else's number.")
 
     ne_raw = effective_votes([votes[t] for t in answerable], n)
+    rows, gold = [votes[t] for t in answerable], [truth[t] for t in answerable]
+    ne_ind = _independent_baseline(rows, gold, n)
+    ne_ind_distinct = _independent_baseline(rows, gold, n, distinct_wrong=True)
     share = bloc_share([p["model"] for p in panel])
-    print(f"\n  effective votes (Kish):     {ne_raw:.2f} of {n}")
-    print(f"  largest provenance share:   {share:.0%}")
-    if share > 0.5:
-        print("  ⚠ ONE GROUP HOLDS THE MAJORITY. The shared-error statistic below cannot see it:")
-        print("    a bloc that IS the plurality never deviates from it, so it is never penalised,")
-        print("    while the independent minority is. Do not trust the weights in this regime.")
+    print(f"\n  effective votes (Kish, raw agreement):   {ne_raw:.2f} of {n}")
+    print(f"  independent voters, same accuracies:     {ne_ind:.2f} "
+          f"({ne_ind_distinct:.2f} if no two wrong answers coincide)")
+    print(f"  largest provenance share:                {share:.0%}")
+    # From half the panel up, not above it: at exactly half a bloc wins every tie its answer
+    # wins on cluster id, and the first answer in input order gets the smallest id. A rigid
+    # five-of-ten bloc in front keeps full weight while the others are penalised (2026-11-21).
+    if share >= 0.5:
+        print("  ⚠ ONE GROUP HOLDS HALF THE PANEL OR MORE. The shared-error statistic below cannot see it:")
+        print("    a bloc that IS the plurality, or wins its ties, never deviates from it, so it is never")
+        print("    penalised, while the independent minority is. Do not trust the weights in this regime.")
 
     # ── 2. the repair ─────────────────────────────────────────────────────────
     best_single = max(
@@ -211,7 +253,8 @@ def main() -> None:
     print("    cannot be repaired by provenance weighting; it has to be made diverse.")
     print("  → Diversity is necessary, not sufficient: when cross-model pairs both break from")
     print(f"    the majority, they still pick the same answer {100 * cross_r:.1f}% of the time, and this")
-    print(f"    panel of four families is worth {ne_raw:.1f} effective votes out of {n}.")
+    print(f"    panel of four families is worth {ne_raw:.1f} effective votes out of {n}, against {ne_ind:.1f}")
+    print("    for independent voters as accurate.")
 
     print("\n--- scope -------------------------------------------------------------")
     print("  57 answerable items, 4 model families, one judge. This is a screen, not a")

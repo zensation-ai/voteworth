@@ -22,14 +22,16 @@ jobs:
           python-version: "3.11"
 
       # v0.1.1 shipped with __version__ still at 0.1.0, because only pyproject.toml was raised.
-      # A release now stops unless the tag, the metadata and the code name the same version.
-      - name: Tag, pyproject.toml and __version__ must agree
+      # A release now stops unless the tag, the metadata, the code and CITATION.cff name the
+      # same version.
+      - name: Tag, pyproject.toml, __version__ and CITATION.cff must agree
         run: |
           tag="${GITHUB_REF_NAME#v}"
           meta=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
           code=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/voteworth/__init__.py)
-          echo "tag=$tag pyproject=$meta __version__=$code"
-          test "$tag" = "$meta" && test "$meta" = "$code"
+          cff=$(sed -n 's/^version: //p' CITATION.cff)
+          echo "tag=$tag pyproject=$meta __version__=$code CITATION.cff=$cff"
+          test "$tag" = "$meta" && test "$meta" = "$code" && test "$code" = "$cff"
 
       - name: Build and check the distribution
         run: |
